@@ -8,13 +8,11 @@ import { InterviewSchedule } from './components/InterviewSchedule';
 import { ApplicationChart, DepartmentChart, CostHiringChart } from './components/ApplicationChart';
 import { SLAInfo } from './components/SLAInfo';
 import { ApplicationForm } from './components/ApplicationForm';
-import { AdminAccounts } from './components/AdminAccounts';
 import { PortalLinkManager } from './components/PortalLinkManager';
 import { ExportExcel } from './components/ExportExcel';
 import { SettingsTab } from './components/SettingsTab';
-import { Search, Bell, Menu, X, Lock, Key, AlertTriangle, UserCheck, Users } from 'lucide-react';
+import { Search, Bell, Menu, X, Lock, Key, AlertTriangle, Users } from 'lucide-react';
 import { useRecruitment } from './context/RecruitmentContext';
-import { SLASettings } from './components/SLASettings';
 
 const stageColors: Record<string, string> = {
   'Applied': 'bg-blue-100 text-blue-700',
@@ -45,9 +43,19 @@ function formatDate(dateStr: string) {
 }
 
 export function App() {
-  const { candidates, isAdmin, currentAdmin, canCreateOrDelete, canAccessSettings, login, setSelectedJobIdForApply, notifications, markNotificationAsRead, markAllNotificationsAsRead } = useRecruitment();
+  const { 
+    candidates, 
+    isAdmin, 
+    currentAdmin, 
+    canCreateOrDelete, 
+    canAccessSettings, 
+    login, 
+    setSelectedJobIdForApply, 
+    notifications, 
+    markNotificationAsRead, 
+    markAllNotificationsAsRead 
+  } = useRecruitment();
 
-  // Restore active tab from sessionStorage on page refresh
   const [activeTab, setActiveTab] = useState<string>(() => {
     const savedTab = sessionStorage.getItem('recruitflow_activeTab');
     if (savedTab && isAdmin) return savedTab;
@@ -59,34 +67,29 @@ export function App() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // Admin login modal state
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
 
-  // Save active tab to sessionStorage whenever it changes
   useEffect(() => {
     sessionStorage.setItem('recruitflow_activeTab', activeTab);
   }, [activeTab]);
 
-  // Navigation guard
   useEffect(() => {
     if (!isAdmin) {
       if (activeTab !== 'apply') {
         setActiveTab('apply');
       }
     } else {
-      // Admin logged in: block settings access for non-privileged roles
       if (activeTab === 'settings' && !canAccessSettings) {
         setActiveTab('dashboard');
       }
-      // Prevent admin from seeing public apply page while logged in
       if (activeTab === 'apply') {
         setActiveTab('dashboard');
       }
     }
-  }, [isAdmin, canAccessSettings]);
+  }, [isAdmin, canAccessSettings, activeTab]);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,7 +240,6 @@ export function App() {
               )}
               {isAdmin ? (
                 <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 shrink-0">
-                  <UserCheck size={16} className="text-indigo-600" />
                   <div className="text-left">
                     <span className="text-xs font-bold text-indigo-700 uppercase block leading-none">{currentAdmin?.role || 'Admin'}</span>
                     {!canCreateOrDelete && <span className="text-[9px] text-indigo-500 block leading-none font-medium mt-0.5">Update & Review</span>}
@@ -322,63 +324,17 @@ export function App() {
           {activeTab === 'interviews' && isAdmin && <InterviewSchedule />}
           {activeTab === 'portal-links' && isAdmin && <PortalLinkManager />}
 
-          {/* APPLY TAB (Public - no admin info at all) */}
+          {/* APPLY TAB (Public) */}
           {activeTab === 'apply' && <ApplicationForm />}
 
           {/* SETTINGS (Admin only) */}
           {activeTab === 'settings' && isAdmin && canAccessSettings && (
             <SettingsTab />
           )}
-          {false && (
-            <div className="space-y-8">
-              {/* Admin Accounts CRUD */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <AdminAccounts />
-              </div>
-              <SettingsTab />
-
-              {/* System Settings */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-                <h3 className="text-xl font-bold text-slate-800 mb-4">Pengaturan Sistem</h3>
-                <p className="text-slate-500 mb-6">Konfigurasi pengaturan dashboard rekrutmen Anda.</p>
-                <div className="space-y-6 max-w-2xl">
-                  <div className="p-4 border border-slate-200 rounded-xl">
-                    <h4 className="font-semibold text-slate-800 mb-2">Notifikasi Email</h4>
-                    <p className="text-sm text-slate-500 mb-3">Terima notifikasi ketika ada kandidat baru</p>
-                    <label className="inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
-                  </div>
-                  <div className="p-4 border border-slate-200 rounded-xl">
-                    <h4 className="font-semibold text-slate-800 mb-2">Auto-Screening</h4>
-                    <p className="text-sm text-slate-500 mb-3">Screening otomatis berdasarkan kriteria</p>
-                    <label className="inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" />
-                      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
-                  </div>
-                  <div className="p-4 border border-slate-200 rounded-xl">
-                    <h4 className="font-semibold text-slate-800 mb-2">Integrasi Kalender</h4>
-                    <p className="text-sm text-slate-500 mb-3">Sinkronisasi jadwal wawancara dengan Google Calendar</p>
-                    <label className="inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-{/* Removed old budget settings, replaced by SettingsTab */}
-
-              {/* SLA Settings */}
-              <SLASettings />
-            </div>
-          )}
         </div>
       </main>
 
-      {/* ========== LOGIN MODAL (Subtle, no hints) ========== */}
+      {/* ========== LOGIN MODAL ========== */}
       {isLoginModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden border border-slate-100">
