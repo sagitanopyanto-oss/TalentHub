@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Candidate, Job, Interview, candidates as initialCandidates, jobs as initialJobs, interviews as initialInterviews, SLAConfig } from '../data/mockData';
-// Import client Supabase yang sudah kita set-up sebelumnya
+// Mengimpor client Supabase yang aman dan valid dari folder config Anda
 import { supabase } from '../config/supabase';
 
 const defaultSlaConfig: SLAConfig[] = [
@@ -97,12 +97,12 @@ const RecruitmentContext = createContext<RecruitmentContextType | undefined>(und
 export function RecruitmentProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // --- State Utama Terkoneksi Supabase ---
+  // --- State Utama yang Kini Mengarah ke Supabase Cloud ---
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [interviews, setInterviews] = useState<Interview[]>([]);
 
-  // --- State Konfigurasi & Admin (Tetap menggunakan LocalStorage) ---
+  // --- State Konfigurasi & Hak Akses Admin (Tetap Aman di Local/Session Storage) ---
   const [isAdmin, setIsAdmin] = useState<boolean>(() => sessionStorage.getItem('recruitflow_isAdmin') === 'true');
   const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(() => {
     const saved = sessionStorage.getItem('recruitflow_currentAdmin');
@@ -143,27 +143,27 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : { companyName: 'NexaTech Industries', allowPublicApply: true, autoNotification: true };
   });
 
-  // --- Fungsi Hak Akses Admin ---
+  // --- Rumus Hak Akses Admin Tingkat Tinggi ---
   const canCreateOrDelete = currentAdmin?.role === 'Super Admin' || currentAdmin?.role === 'Recruiter';
   const canCreateJobs = currentAdmin?.role === 'Super Admin' || currentAdmin?.role === 'Recruiter';
   const canAccessSettings = currentAdmin?.role === 'Super Admin';
 
   // =========================================================
-  // ⚡ PROSES FETCH DATA REAL-TIME DARI SUPABASE
+  // ⚡ 1. PROSES FETCH DATA SECARA OTOMATIS SAAT APLIKASI DIBUKA
   // =========================================================
   useEffect(() => {
-    async function fetchDatabaseData() {
+    async function loadDatabaseData() {
       setIsLoading(true);
       try {
-        // 1. Ambil data kandidat
+        // Ambil Data Kandidat dari Supabase
         const { data: dbCandidates, error: candError } = await supabase.from('candidates').select('*');
         if (!candError && dbCandidates) {
           setCandidates(dbCandidates);
         } else {
-          setCandidates(initialCandidates); // Fallback jika tabel kosong/error
+          setCandidates(initialCandidates); // Fallback ke data palsu jika tabel kosong
         }
 
-        // 2. Ambil data lowongan (jobs)
+        // Ambil Data Lowongan Pekerjaan dari Supabase
         const { data: dbJobs, error: jobsError } = await supabase.from('jobs').select('*');
         if (!jobsError && dbJobs) {
           setJobs(dbJobs);
@@ -171,7 +171,7 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
           setJobs(initialJobs);
         }
 
-        // 3. Ambil data wawancara (interviews)
+        // Ambil Data Jadwal Wawancara dari Supabase
         const { data: dbInterviews, error: intError } = await supabase.from('interviews').select('*');
         if (!intError && dbInterviews) {
           setInterviews(dbInterviews);
@@ -179,7 +179,7 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
           setInterviews(initialInterviews);
         }
       } catch (err) {
-        console.error('Gagal memuat data dari Supabase, beralih ke data lokal:', err);
+        console.error('Koneksi Supabase bermasalah, mengaktifkan data cadangan lokal:', err);
         setCandidates(initialCandidates);
         setJobs(initialJobs);
         setInterviews(initialInterviews);
@@ -188,14 +188,14 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    fetchDatabaseData();
+    loadDatabaseData();
   }, []);
 
   // =========================================================
-  // 💾 PROSES MUTASI DATA (CRUD) KE SUPABASE
+  // 💾 2. LOGIKA OPERASI MUTASI DATA (CRUD) KE SUPABASE CLOUD
   // =========================================================
   
-  // CANDIDATES CRUD
+  // LOGIKA MANAJEMEN KANDIDAT (PELAMAR)
   const addCandidate = async (candidateData: Omit<Candidate, 'id' | 'avatar'>) => {
     const avatarLetter = candidateData.name ? candidateData.name.charAt(0).toUpperCase() : 'C';
     const newRecord = { ...candidateData, avatar: avatarLetter };
@@ -214,7 +214,7 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     if (!error) {
       setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
     } else {
-      console.error('Gagal memperbarui kandidat di Supabase:', error);
+      console.error('Gagal memperbarui data kandidat di Supabase:', error);
     }
   };
 
@@ -227,7 +227,7 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // JOBS CRUD
+  // LOGIKA MANAJEMEN LOWONGAN PEKERJAAN (JOBS)
   const addJob = async (jobData: Omit<Job, 'id'>) => {
     const { data, error } = await supabase.from('jobs').insert([jobData]).select();
     if (!error && data) {
@@ -250,7 +250,7 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // INTERVIEWS CRUD
+  // LOGIKA MANAJEMEN JADWAL WAWANCARA (INTERVIEWS)
   const addInterview = async (interviewData: Omit<Interview, 'id'>) => {
     const { data, error } = await supabase.from('interviews').insert([interviewData]).select();
     if (!error && data) {
@@ -273,7 +273,7 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // --- Fungsi Autentikasi Admin ---
+  // --- Fungsi Otentikasi Admin & Pembantu UI Lainnya ---
   const login = (username: string, password: string): boolean => {
     const account = adminAccounts.find(a => a.username === username && a.password === password);
     if (account) {
@@ -293,7 +293,6 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem('recruitflow_currentAdmin');
   };
 
-  // --- Pengaturan Komponen Pembantu Lainnya (Lokal) ---
   const addAdminAccount = (acc: Omit<AdminAccount, 'id'>) => {
     const newAcc = { ...acc, id: adminAccounts.length > 0 ? Math.max(...adminAccounts.map(a=>a.id)) + 1 : 1 };
     setAdminAccounts(prev => [...prev, newAcc]);
