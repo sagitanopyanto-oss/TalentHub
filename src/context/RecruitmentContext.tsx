@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Candidate, Job, Interview, candidates as initialCandidates, jobs as initialJobs, interviews as initialInterviews, SLAConfig } from '../data/mockData';
+// Import client Supabase yang sudah kita set-up sebelumnya
+import { supabase } from '../config/supabase';
 
 const defaultSlaConfig: SLAConfig[] = [
   { stage: 'Screening',   slaDays: 5,  color: '#8b5cf6' },
@@ -21,7 +23,7 @@ export interface PortalLinkInfo {
   id: number;
   portalName: string;
   companyName: string;
-  companyLogo: string; // Base64 or URL
+  companyLogo: string;
   heroTitle: string;
   heroSubtitle: string;
   aboutCompany: string;
@@ -37,204 +39,248 @@ export interface AppNotification {
   type: 'candidate' | 'interview' | 'system';
 }
 
-export interface SystemSettings {
-  emailNotifications: boolean;
-  autoScreening: boolean;
-  calendarIntegration: boolean;
-  medicalMandatory: boolean;
-}
-
-const defaultAdmins: AdminAccount[] = [
-  { id: 1, username: 'superadmin', password: 'admin123', role: 'Super Admin' },
-  { id: 2, username: 'admin', password: 'admin123', role: 'Admin' },
-  { id: 3, username: 'recruiter', password: 'admin123', role: 'Recruiter' },
-];
-
-const defaultNotifications: AppNotification[] = [];
-
-const defaultPortalLinks: PortalLinkInfo[] = [
-  {
-    id: 1,
-    portalName: 'Portal Utama RecruitFlow',
-    companyName: 'PT Teknologi Masa Depan (RecruitFlow)',
-    companyLogo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80',
-    heroTitle: 'Bergabunglah Bersama Kami! 🚀',
-    heroSubtitle: 'Temukan peluang karir terbaik dan lamar posisi yang sesuai dengan kemampuan Anda di perusahaan kami.',
-    aboutCompany: 'Kami adalah perusahaan teknologi terdepan yang berfokus pada inovasi, kolaborasi, dan pengembangan talenta digital berkelas dunia. Melalui solusi berbasis cloud, kami mentransformasi masa depan industri secara global.',
-    isActive: true,
-  },
-  {
-    id: 2,
-    portalName: 'Portal Internship & Fresh Grad',
-    companyName: 'RecruitFlow Campus Academy',
-    companyLogo: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=150&q=80',
-    heroTitle: 'Mulai Karir Suksesmu Di Sini! 🎓',
-    heroSubtitle: 'Program magang dan akselerasi karir khusus fresh graduate dengan bimbingan mentor berpengalaman.',
-    aboutCompany: 'Program dedikasi untuk menjembatani dunia akademis dengan industri profesional melalui real-world projects, riset mutakhir, dan bimbingan eksklusif dari para pakar industri.',
-    isActive: false,
-  }
-];
-
 interface RecruitmentContextType {
   candidates: Candidate[];
-  addCandidate: (candidate: Omit<Candidate, 'id'>) => void;
-  updateCandidate: (id: number, candidate: Partial<Candidate>) => void;
-  deleteCandidate: (id: number) => void;
+  addCandidate: (candidate: Omit<Candidate, 'id' | 'avatar'>) => Promise<void>;
+  updateCandidate: (id: number, updated: Partial<Candidate>) => Promise<void>;
+  deleteCandidate: (id: number) => Promise<void>;
   
   jobs: Job[];
-  addJob: (job: Omit<Job, 'id'>) => void;
-  updateJob: (id: number, job: Partial<Job>) => void;
-  deleteJob: (id: number) => void;
-
+  addJob: (job: Omit<Job, 'id'>) => Promise<void>;
+  updateJob: (id: number, updated: Partial<Job>) => Promise<void>;
+  deleteJob: (id: number) => Promise<void>;
+  
   interviews: Interview[];
-  addInterview: (interview: Omit<Interview, 'id'>) => void;
-  updateInterview: (id: number, interview: Partial<Interview>) => void;
-  deleteInterview: (id: number) => void;
+  addInterview: (interview: Omit<Interview, 'id'>) => Promise<void>;
+  updateInterview: (id: number, updated: Partial<Interview>) => Promise<void>;
+  deleteInterview: (id: number) => Promise<void>;
 
-  // Auth
   isAdmin: boolean;
   currentAdmin: AdminAccount | null;
-  canCreateOrDelete: boolean;   // Super Admin & HR Manager only (full delete access)
-  canCreateJobs: boolean;       // All admin roles can create job postings
+  canCreateOrDelete: boolean;
+  canCreateJobs: boolean;
   canAccessSettings: boolean;
   login: (username: string, password: string) => boolean;
   logout: () => void;
-
-  // Admin Accounts CRUD
+  
   adminAccounts: AdminAccount[];
   addAdminAccount: (account: Omit<AdminAccount, 'id'>) => void;
-  updateAdminAccount: (id: number, account: Partial<AdminAccount>) => void;
+  updateAdminAccount: (id: number, updated: Partial<AdminAccount>) => void;
   deleteAdminAccount: (id: number) => void;
-
-  // Portal Links CRUD
+  
   portalLinks: PortalLinkInfo[];
-  addPortalLink: (portalLink: Omit<PortalLinkInfo, 'id' | 'isActive'>) => void;
-  updatePortalLink: (id: number, portalLink: Partial<PortalLinkInfo>) => void;
+  addPortalLink: (link: Omit<PortalLinkInfo, 'id'>) => void;
+  updatePortalLink: (id: number, updated: Partial<PortalLinkInfo>) => void;
   deletePortalLink: (id: number) => void;
   setActivePortalLink: (id: number) => void;
-
-  // Utility
+  
   getJobApplicantCount: (jobTitle: string) => number;
-
-  // Navigation
   selectedJobIdForApply: number | null;
   setSelectedJobIdForApply: (id: number | null) => void;
-
-  // Notifications
+  
   notifications: AppNotification[];
   markNotificationAsRead: (id: number) => void;
   markAllNotificationsAsRead: () => void;
-  addNotification: (notification: Omit<AppNotification, 'id' | 'read'>) => void;
-
-  // Budget
+  addNotification: (title: string, message: string, type: 'candidate' | 'interview' | 'system') => void;
+  
   hiringBudget: number;
   setHiringBudget: (budget: number) => void;
-
-  // SLA Config
   slaConfig: SLAConfig[];
-  updateSlaConfig: (newConfig: SLAConfig[]) => void;
-
-  // System Settings
-  systemSettings: SystemSettings;
-  setSystemSettings: (settings: SystemSettings) => void;
+  updateSlaConfig: (stage: string, days: number) => void;
+  systemSettings: { companyName: string; allowPublicApply: boolean; autoNotification: boolean };
+  setSystemSettings: (settings: { companyName: string; allowPublicApply: boolean; autoNotification: boolean }) => void;
+  isLoading: boolean;
 }
 
 const RecruitmentContext = createContext<RecruitmentContextType | undefined>(undefined);
 
 export function RecruitmentProvider({ children }: { children: ReactNode }) {
-  // Persist semua data utama ke localStorage agar tidak hilang saat refresh
-  const [candidates, setCandidates] = useState<Candidate[]>(() => {
-    const saved = localStorage.getItem('recruitflow_candidates');
-    return saved ? JSON.parse(saved) : initialCandidates;
-  });
-  const [jobs, setJobs] = useState<Job[]>(() => {
-    const saved = localStorage.getItem('recruitflow_jobs');
-    return saved ? JSON.parse(saved) : initialJobs;
-  });
-  const [interviews, setInterviews] = useState<Interview[]>(() => {
-    const saved = localStorage.getItem('recruitflow_interviews');
-    return saved ? JSON.parse(saved) : initialInterviews;
-  });
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Sync data utama ke localStorage setiap kali berubah
-  useEffect(() => { localStorage.setItem('recruitflow_candidates', JSON.stringify(candidates)); }, [candidates]);
-  useEffect(() => { localStorage.setItem('recruitflow_jobs', JSON.stringify(jobs)); }, [jobs]);
-  useEffect(() => { localStorage.setItem('recruitflow_interviews', JSON.stringify(interviews)); }, [interviews]);
-  
-  // Persist login session across page refresh using sessionStorage
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
-    const saved = sessionStorage.getItem('recruitflow_isAdmin');
-    return saved === 'true';
-  });
+  // --- State Utama Terkoneksi Supabase ---
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+
+  // --- State Konfigurasi & Admin (Tetap menggunakan LocalStorage) ---
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => sessionStorage.getItem('recruitflow_isAdmin') === 'true');
   const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(() => {
     const saved = sessionStorage.getItem('recruitflow_currentAdmin');
     return saved ? JSON.parse(saved) : null;
   });
-  const [selectedJobIdForApply, setSelectedJobIdForApply] = useState<number | null>(null);
-  
+
   const [adminAccounts, setAdminAccounts] = useState<AdminAccount[]>(() => {
     const saved = localStorage.getItem('recruitflow_adminAccounts');
-    return saved ? JSON.parse(saved) : defaultAdmins;
+    return saved ? JSON.parse(saved) : [
+      { id: 1, username: 'admin', password: 'admin123', role: 'Super Admin' },
+      { id: 2, username: 'hr_recruiter', password: 'hr123', role: 'Recruiter' },
+      { id: 3, username: 'hr_interviewer', password: 'user123', role: 'Interviewer' }
+    ];
   });
+
   const [portalLinks, setPortalLinks] = useState<PortalLinkInfo[]>(() => {
     const saved = localStorage.getItem('recruitflow_portalLinks');
-    return saved ? JSON.parse(saved) : defaultPortalLinks;
+    return saved ? JSON.parse(saved) : [
+      { id: 1, portalName: 'Portal Utama', companyName: 'NexaTech Industries', companyLogo: 'NT', heroTitle: 'Bangun Karir Masa Depan Anda Bersama Kami', heroSubtitle: 'Temukan lowongan pekerjaan terbaik yang sesuai dengan keahlian dan passion Anda.', aboutCompany: 'NexaTech Industries adalah perusahaan teknologi terkemuka yang berfokus pada solusi inovatif.', isActive: true }
+    ];
   });
+
   const [notifications, setNotifications] = useState<AppNotification[]>(() => {
     const saved = localStorage.getItem('recruitflow_notifications');
-    return saved ? JSON.parse(saved) : defaultNotifications;
-  });
-  const [hiringBudget, setHiringBudgetState] = useState<number>(() => {
-    const saved = localStorage.getItem('recruitflow_hiringBudget');
-    return saved ? Number(saved) : 100000000;
+    return saved ? JSON.parse(saved) : [];
   });
 
-  const setHiringBudget = (budget: number) => {
-    setHiringBudgetState(budget);
-    localStorage.setItem('recruitflow_hiringBudget', String(budget));
-  };
-
-  const [slaConfig, setSlaConfigState] = useState<SLAConfig[]>(() => {
+  const [selectedJobIdForApply, setSelectedJobIdForApply] = useState<number | null>(null);
+  const [hiringBudget, setHiringBudget] = useState<number>(() => Number(localStorage.getItem('recruitflow_hiringBudget')) || 500000000);
+  
+  const [slaConfig, setSlaConfig] = useState<SLAConfig[]>(() => {
     const saved = localStorage.getItem('recruitflow_slaConfig');
     return saved ? JSON.parse(saved) : defaultSlaConfig;
   });
 
-  const updateSlaConfig = (newConfig: SLAConfig[]) => {
-    setSlaConfigState(newConfig);
-    localStorage.setItem('recruitflow_slaConfig', JSON.stringify(newConfig));
-  };
-
-  const [systemSettings, setSystemSettingsState] = useState<SystemSettings>(() => {
+  const [systemSettings, setSystemSettings] = useState(() => {
     const saved = localStorage.getItem('recruitflow_systemSettings');
-    return saved ? JSON.parse(saved) : { emailNotifications: true, autoScreening: false, calendarIntegration: true, medicalMandatory: true };
+    return saved ? JSON.parse(saved) : { companyName: 'NexaTech Industries', allowPublicApply: true, autoNotification: true };
   });
 
-  const setSystemSettings = (settings: SystemSettings) => {
-    setSystemSettingsState(settings);
-    localStorage.setItem('recruitflow_systemSettings', JSON.stringify(settings));
+  // --- Fungsi Hak Akses Admin ---
+  const canCreateOrDelete = currentAdmin?.role === 'Super Admin' || currentAdmin?.role === 'Recruiter';
+  const canCreateJobs = currentAdmin?.role === 'Super Admin' || currentAdmin?.role === 'Recruiter';
+  const canAccessSettings = currentAdmin?.role === 'Super Admin';
+
+  // =========================================================
+  // ⚡ PROSES FETCH DATA REAL-TIME DARI SUPABASE
+  // =========================================================
+  useEffect(() => {
+    async function fetchDatabaseData() {
+      setIsLoading(true);
+      try {
+        // 1. Ambil data kandidat
+        const { data: dbCandidates, error: candError } = await supabase.from('candidates').select('*');
+        if (!candError && dbCandidates) {
+          setCandidates(dbCandidates);
+        } else {
+          setCandidates(initialCandidates); // Fallback jika tabel kosong/error
+        }
+
+        // 2. Ambil data lowongan (jobs)
+        const { data: dbJobs, error: jobsError } = await supabase.from('jobs').select('*');
+        if (!jobsError && dbJobs) {
+          setJobs(dbJobs);
+        } else {
+          setJobs(initialJobs);
+        }
+
+        // 3. Ambil data wawancara (interviews)
+        const { data: dbInterviews, error: intError } = await supabase.from('interviews').select('*');
+        if (!intError && dbInterviews) {
+          setInterviews(dbInterviews);
+        } else {
+          setInterviews(initialInterviews);
+        }
+      } catch (err) {
+        console.error('Gagal memuat data dari Supabase, beralih ke data lokal:', err);
+        setCandidates(initialCandidates);
+        setJobs(initialJobs);
+        setInterviews(initialInterviews);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchDatabaseData();
+  }, []);
+
+  // =========================================================
+  // 💾 PROSES MUTASI DATA (CRUD) KE SUPABASE
+  // =========================================================
+  
+  // CANDIDATES CRUD
+  const addCandidate = async (candidateData: Omit<Candidate, 'id' | 'avatar'>) => {
+    const avatarLetter = candidateData.name ? candidateData.name.charAt(0).toUpperCase() : 'C';
+    const newRecord = { ...candidateData, avatar: avatarLetter };
+    
+    const { data, error } = await supabase.from('candidates').insert([newRecord]).select();
+    if (!error && data) {
+      setCandidates(prev => [...prev, data[0]]);
+      addNotification('Kandidat Baru', `${candidateData.name} melamar posisi ${candidateData.position}`, 'candidate');
+    } else {
+      console.error('Gagal menyimpan kandidat ke Supabase:', error);
+    }
   };
 
-  const canCreateOrDelete = currentAdmin ? (currentAdmin.role === 'Super Admin' || currentAdmin.role === 'HR Manager') : false;
-  // Admin & Recruiter can CREATE job postings, but cannot delete
-  const canCreateJobs = currentAdmin ? true : false; 
-  const canAccessSettings = currentAdmin ? (currentAdmin.role === 'Super Admin' || currentAdmin.role === 'HR Manager') : false;
-
-  // Sync login state to sessionStorage so it survives page refresh
-  useEffect(() => {
-    sessionStorage.setItem('recruitflow_isAdmin', String(isAdmin));
-    if (currentAdmin) {
-      sessionStorage.setItem('recruitflow_currentAdmin', JSON.stringify(currentAdmin));
+  const updateCandidate = async (id: number, updatedFields: Partial<Candidate>) => {
+    const { error } = await supabase.from('candidates').update(updatedFields).eq('id', id);
+    if (!error) {
+      setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
     } else {
-      sessionStorage.removeItem('recruitflow_currentAdmin');
+      console.error('Gagal memperbarui kandidat di Supabase:', error);
     }
-  }, [isAdmin, currentAdmin]);
+  };
 
-  // Auth
-  const login = (username: string, password: string) => {
+  const deleteCandidate = async (id: number) => {
+    const { error } = await supabase.from('candidates').delete().eq('id', id);
+    if (!error) {
+      setCandidates(prev => prev.filter(c => c.id !== id));
+    } else {
+      console.error('Gagal menghapus kandidat di Supabase:', error);
+    }
+  };
+
+  // JOBS CRUD
+  const addJob = async (jobData: Omit<Job, 'id'>) => {
+    const { data, error } = await supabase.from('jobs').insert([jobData]).select();
+    if (!error && data) {
+      setJobs(prev => [...prev, data[0]]);
+      addNotification('Lowongan Baru', `Lowongan baru "${jobData.title}" telah dibuka.`, 'system');
+    }
+  };
+
+  const updateJob = async (id: number, updatedFields: Partial<Job>) => {
+    const { error } = await supabase.from('jobs').update(updatedFields).eq('id', id);
+    if (!error) {
+      setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updatedFields } : j));
+    }
+  };
+
+  const deleteJob = async (id: number) => {
+    const { error } = await supabase.from('jobs').delete().eq('id', id);
+    if (!error) {
+      setJobs(prev => prev.filter(j => j.id !== id));
+    }
+  };
+
+  // INTERVIEWS CRUD
+  const addInterview = async (interviewData: Omit<Interview, 'id'>) => {
+    const { data, error } = await supabase.from('interviews').insert([interviewData]).select();
+    if (!error && data) {
+      setInterviews(prev => [...prev, data[0]]);
+      addNotification('Jadwal Wawancara', `Wawancara dijadwalkan untuk ${interviewData.candidateName}`, 'interview');
+    }
+  };
+
+  const updateInterview = async (id: number, updatedFields: Partial<Interview>) => {
+    const { error } = await supabase.from('interviews').update(updatedFields).eq('id', id);
+    if (!error) {
+      setInterviews(prev => prev.map(i => i.id === id ? { ...i, ...updatedFields } : i));
+    }
+  };
+
+  const deleteInterview = async (id: number) => {
+    const { error } = await supabase.from('interviews').delete().eq('id', id);
+    if (!error) {
+      setInterviews(prev => prev.filter(i => i.id !== id));
+    }
+  };
+
+  // --- Fungsi Autentikasi Admin ---
+  const login = (username: string, password: string): boolean => {
     const account = adminAccounts.find(a => a.username === username && a.password === password);
     if (account) {
       setIsAdmin(true);
       setCurrentAdmin(account);
+      sessionStorage.setItem('recruitflow_isAdmin', 'true');
+      sessionStorage.setItem('recruitflow_currentAdmin', JSON.stringify(account));
       return true;
     }
     return false;
@@ -245,116 +291,50 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     setCurrentAdmin(null);
     sessionStorage.removeItem('recruitflow_isAdmin');
     sessionStorage.removeItem('recruitflow_currentAdmin');
-    sessionStorage.removeItem('recruitflow_activeTab');
   };
 
-  // Helper untuk menambah notifikasi
-  const triggerNotification = (title: string, message: string, type: 'candidate' | 'interview' | 'system') => {
-    const newId = Date.now();
-    const notifItem: AppNotification = { id: newId, title, message, time: 'Baru saja', read: false, type };
-    setNotifications(prev => [notifItem, ...prev]);
+  // --- Pengaturan Komponen Pembantu Lainnya (Lokal) ---
+  const addAdminAccount = (acc: Omit<AdminAccount, 'id'>) => {
+    const newAcc = { ...acc, id: adminAccounts.length > 0 ? Math.max(...adminAccounts.map(a=>a.id)) + 1 : 1 };
+    setAdminAccounts(prev => [...prev, newAcc]);
   };
-
-  // Candidates
-  const addCandidate = (candidateData: Omit<Candidate, 'id'>) => {
-    const newId = Date.now();
-    const newCandidate: Candidate = { ...candidateData, id: newId };
-    setCandidates(prev => [newCandidate, ...prev]);
-    
-    // Add notification when a new candidate applies or is added
-    triggerNotification('Lamaran Baru Masuk!', `${newCandidate.name} telah melamar posisi ${newCandidate.position}`, 'candidate');
+  const updateAdminAccount = (id: number, updated: Partial<AdminAccount>) => {
+    setAdminAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updated } : a));
   };
-
-  const updateCandidate = (id: number, updatedFields: Partial<Candidate>) => {
-    setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
-  };
-
-  const deleteCandidate = (id: number) => {
-    setCandidates(prev => prev.filter(c => c.id !== id));
-  };
-
-  // Jobs
-  const addJob = (jobData: Omit<Job, 'id'>) => {
-    const newId = Date.now();
-    const newJob: Job = { ...jobData, id: newId };
-    setJobs(prev => [...prev, newJob]);
-  };
-
-  const updateJob = (id: number, updatedFields: Partial<Job>) => {
-    setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updatedFields } : j));
-  };
-
-  const deleteJob = (id: number) => {
-    setJobs(prev => prev.filter(j => j.id !== id));
-  };
-
-  // Interviews
-  const addInterview = (interviewData: Omit<Interview, 'id'>) => {
-    const newId = Date.now();
-    const newInterview: Interview = { ...interviewData, id: newId };
-    setInterviews(prev => [newInterview, ...prev]);
-
-    triggerNotification('Jadwal Wawancara', `Wawancara dengan ${newInterview.candidateName} dijadwalkan pada ${newInterview.date}`, 'interview');
-  };
-
-  const updateInterview = (id: number, updatedFields: Partial<Interview>) => {
-    setInterviews(prev => prev.map(i => i.id === id ? { ...i, ...updatedFields } : i));
-  };
-
-  const deleteInterview = (id: number) => {
-    setInterviews(prev => prev.filter(i => i.id !== id));
-  };
-
-  // Admin Accounts CRUD
-  const addAdminAccount = (account: Omit<AdminAccount, 'id'>) => {
-    const newId = Date.now();
-    setAdminAccounts(prev => [...prev, { ...account, id: newId }]);
-  };
-
-  const updateAdminAccount = (id: number, updatedFields: Partial<AdminAccount>) => {
-    setAdminAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updatedFields } : a));
-  };
-
   const deleteAdminAccount = (id: number) => {
     setAdminAccounts(prev => prev.filter(a => a.id !== id));
   };
 
-  // Portal Links CRUD
-  const addPortalLink = (portalLink: Omit<PortalLinkInfo, 'id' | 'isActive'>) => {
-    const newId = Date.now();
-    const isFirst = portalLinks.length === 0;
-    setPortalLinks(prev => [...prev, { ...portalLink, id: newId, isActive: isFirst }]);
+  const addPortalLink = (link: Omit<PortalLinkInfo, 'id'>) => {
+    const newLink = { ...link, id: portalLinks.length > 0 ? Math.max(...portalLinks.map(p=>p.id)) + 1 : 1 };
+    setPortalLinks(prev => [...prev, newLink]);
   };
-
-  const updatePortalLink = (id: number, updatedFields: Partial<PortalLinkInfo>) => {
-    setPortalLinks(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+  const updatePortalLink = (id: number, updated: Partial<PortalLinkInfo>) => {
+    setPortalLinks(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
   };
-
   const deletePortalLink = (id: number) => {
-    const filtered = portalLinks.filter(p => p.id !== id);
-    if (filtered.length > 0 && !filtered.some(p => p.isActive)) {
-      filtered[0].isActive = true;
-    }
-    setPortalLinks(filtered);
+    setPortalLinks(prev => prev.filter(p => p.id !== id));
   };
-
   const setActivePortalLink = (id: number) => {
-    setPortalLinks(prev => prev.map(p => ({
-      ...p,
-      isActive: p.id === id
-    })));
+    setPortalLinks(prev => prev.map(p => ({ ...p, isActive: p.id === id })));
   };
 
-  // Utility: hitung jumlah pelamar berdasarkan data kandidat aktual
-  const getJobApplicantCount = (jobTitle: string): number => {
-    return candidates.filter(c =>
-      c.position === jobTitle ||
-      c.position.toLowerCase().includes(jobTitle.toLowerCase()) ||
-      jobTitle.toLowerCase().includes(c.position.toLowerCase())
-    ).length;
+  const getJobApplicantCount = (jobTitle: string) => {
+    return candidates.filter(c => c.position.toLowerCase() === jobTitle.toLowerCase()).length;
   };
 
-  // Notifications
+  const addNotification = (title: string, message: string, type: 'candidate' | 'interview' | 'system') => {
+    const newNotif: AppNotification = {
+      id: Date.now(),
+      title,
+      message,
+      time: 'Baru saja',
+      read: false,
+      type
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
   const markNotificationAsRead = (id: number) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
@@ -363,15 +343,16 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const addNotification = (notification: Omit<AppNotification, 'id' | 'read'>) => {
-    const newId = Date.now();
-    setNotifications(prev => [{ ...notification, id: newId, read: false }, ...prev]);
+  const updateSlaConfig = (stage: string, days: number) => {
+    setSlaConfig(prev => prev.map(s => s.stage === stage ? { ...s, slaDays: days } : s));
   };
 
-  // Sync other states to local storage
   useEffect(() => { localStorage.setItem('recruitflow_adminAccounts', JSON.stringify(adminAccounts)); }, [adminAccounts]);
   useEffect(() => { localStorage.setItem('recruitflow_portalLinks', JSON.stringify(portalLinks)); }, [portalLinks]);
   useEffect(() => { localStorage.setItem('recruitflow_notifications', JSON.stringify(notifications)); }, [notifications]);
+  useEffect(() => { localStorage.setItem('recruitflow_hiringBudget', hiringBudget.toString()); }, [hiringBudget]);
+  useEffect(() => { localStorage.setItem('recruitflow_slaConfig', JSON.stringify(slaConfig)); }, [slaConfig]);
+  useEffect(() => { localStorage.setItem('recruitflow_systemSettings', JSON.stringify(systemSettings)); }, [systemSettings]);
 
   return (
     <RecruitmentContext.Provider value={{
@@ -386,7 +367,8 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
       notifications, markNotificationAsRead, markAllNotificationsAsRead, addNotification,
       hiringBudget, setHiringBudget,
       slaConfig, updateSlaConfig,
-      systemSettings, setSystemSettings
+      systemSettings, setSystemSettings,
+      isLoading
     }}>
       {children}
     </RecruitmentContext.Provider>
