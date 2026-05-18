@@ -24,322 +24,340 @@ export function JobListings({ onSelectForApply }: { onSelectForApply: (id: numbe
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); // State Loading untuk Cloud Saver
 
   const emptyForm = {
-    title: '', department: '', location: '', type: 'Full-time',
-    minSalary: 0, maxSalary: 0, hiddenSalary: false,
-    status: 'Active' as Job['status'], applicants: 0,
+    title: '',
+    department: 'Engineering',
+    location: '',
+    type: 'Full-time',
+    status: 'Active' as const,
+    minSalary: '',
+    maxSalary: '',
+    hiddenSalary: false,
     jobDescription: '',
-    responsibilities: '' as string,        // String multiline, dipisah \n saat save
-    qualifications: '' as string,
-    skills: '' as string,                   // Comma-separated
-    benefits: '' as string,
+    responsibilities: '',
+    qualifications: '',
+    skills: '',
+    benefits: '',
     preferredEducation: 'S1',
-    preferredMajors: '' as string,          // Comma-separated
+    preferredMajors: '',
     preferredExperience: '1-2 tahun',
-    preferredLastPositions: '' as string,   // Comma-separated
+    preferredLastPositions: '',
   };
 
   const [formData, setFormData] = useState(emptyForm);
 
-  const handleOpenModal = (job?: Job) => {
-    if (job) {
-      setEditingJob(job);
-      setFormData({
-        title: job.title, department: job.department, location: job.location, type: job.type,
-        minSalary: job.minSalary, maxSalary: job.maxSalary, hiddenSalary: job.hiddenSalary,
-        status: job.status, applicants: job.applicants,
-        jobDescription: job.jobDescription || '',
-        responsibilities: (job.responsibilities || []).join('\n'),
-        qualifications: (job.qualifications || []).join('\n'),
-        skills: (job.skills || []).join(', '),
-        benefits: (job.benefits || []).join('\n'),
-        preferredEducation: job.preferredEducation || 'S1',
-        preferredMajors: (job.preferredMajors || []).join(', '),
-        preferredExperience: job.preferredExperience || '1-2 tahun',
-        preferredLastPositions: (job.preferredLastPositions || []).join(', '),
-      });
-    } else {
-      setEditingJob(null);
-      setFormData({ ...emptyForm });
-    }
+  const handleOpenAdd = () => {
+    setEditingJob(null);
+    setFormData(emptyForm);
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Konversi string multi-line / comma-separated ke array
-    const splitLines = (s: string) => s.split('\n').map(l => l.trim()).filter(Boolean);
-    const splitComma = (s: string) => s.split(',').map(l => l.trim()).filter(Boolean);
-
-    const jobPayload = {
-      title: formData.title, department: formData.department, location: formData.location, type: formData.type,
-      minSalary: formData.minSalary, maxSalary: formData.maxSalary, hiddenSalary: formData.hiddenSalary,
-      status: formData.status, applicants: formData.applicants,
-      jobDescription: formData.jobDescription,
-      responsibilities: splitLines(formData.responsibilities),
-      qualifications: splitLines(formData.qualifications),
-      skills: splitComma(formData.skills),
-      benefits: splitLines(formData.benefits),
-      preferredEducation: formData.preferredEducation,
-      preferredMajors: splitComma(formData.preferredMajors),
-      preferredExperience: formData.preferredExperience,
-      preferredLastPositions: splitComma(formData.preferredLastPositions),
-    };
-
-    if (editingJob) {
-      updateJob(editingJob.id, jobPayload);
-    } else {
-      addJob({
-        ...jobPayload,
-        postedDate: new Date().toISOString().split('T')[0],
-      });
-    }
-    setIsModalOpen(false);
+  const handleOpenEdit = (job: Job) => {
+    setEditingJob(job);
+    setFormData({
+      title: job.title,
+      department: job.department,
+      location: job.location,
+      type: job.type,
+      status: job.status,
+      minSalary: job.minSalary.toString(),
+      maxSalary: job.maxSalary.toString(),
+      hiddenSalary: job.hiddenSalary || false,
+      jobDescription: job.jobDescription || '',
+      responsibilities: job.responsibilities ? job.responsibilities.join('\n') : '',
+      qualifications: job.qualifications ? job.qualifications.join('\n') : '',
+      skills: job.skills ? job.skills.join('\n') : '',
+      benefits: job.benefits ? job.benefits.join('\n') : '',
+      preferredEducation: job.preferredEducation || 'S1',
+      preferredMajors: job.preferredMajors ? job.preferredMajors.join('\n') : '',
+      preferredExperience: job.preferredExperience || '1-2 tahun',
+      preferredLastPositions: job.preferredLastPositions ? job.preferredLastPositions.join('\n') : '',
+    });
+    setIsModalOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    deleteJob(id);
-    setDeleteConfirmId(null);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const jobData = {
+      title: formData.title,
+      department: formData.department,
+      location: formData.location,
+      type: formData.type,
+      status: formData.status,
+      minSalary: Number(formData.minSalary) || 0,
+      maxSalary: Number(formData.maxSalary) || 0,
+      hiddenSalary: formData.hiddenSalary,
+      jobDescription: formData.jobDescription,
+      responsibilities: formData.responsibilities.split('\n').map(s => s.trim()).filter(Boolean),
+      qualifications: formData.qualifications.split('\n').map(s => s.trim()).filter(Boolean),
+      skills: formData.skills.split('\n').map(s => s.trim()).filter(Boolean),
+      benefits: formData.benefits.split('\n').map(s => s.trim()).filter(Boolean),
+      preferredEducation: formData.preferredEducation,
+      preferredMajors: formData.preferredMajors.split('\n').map(s => s.trim()).filter(Boolean),
+      preferredExperience: formData.preferredExperience,
+      preferredLastPositions: formData.preferredLastPositions.split('\n').map(s => s.trim()).filter(Boolean),
+    };
+
+    try {
+      if (editingJob) {
+        await updateJob(editingJob.id, jobData);
+      } else {
+        await addJob({
+          ...jobData,
+          applicants: 0,
+          postedDate: new Date().toISOString().split('T')[0],
+        });
+      }
+      setIsModalOpen(false);
+      setFormData(emptyForm);
+    } catch (error) {
+      console.error('Gagal memproses data lowongan ke Supabase:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    setIsSubmitting(true);
+    try {
+      await deleteJob(id);
+      setDeleteConfirmId(null);
+    } catch (error) {
+      console.error('Gagal menghapus data lowongan di Supabase:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div className="p-6 border-b border-slate-100">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Lowongan Pekerjaan</h3>
-            <p className="text-sm text-slate-500 mt-1">Semua posisi yang sedang dibuka ({jobs.length} lowongan)</p>
-          </div>
-          {canCreateJobs && (
-            <button
-              onClick={() => handleOpenModal()}
-              className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/30 transition-all duration-200 w-fit"
-            >
-              + Buat Lowongan
-            </button>
-          )}
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Lowongan Pekerjaan</h1>
+          <p className="text-xs text-slate-400 mt-0.5">Kelola informasi posisi pekerjaan, kriteria rekrutmen, dan status publikasi portal karir Anda</p>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
-        {jobs.map((job) => (
-          <div
-            key={job.id}
-            className="border border-slate-200 rounded-2xl p-5 hover:shadow-md hover:border-indigo-200 transition-all duration-300 group"
+        {canCreateJobs && (
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-medium text-sm hover:bg-indigo-700 transition-colors shadow-sm self-start sm:self-center"
           >
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{job.title}</h4>
-                <p className="text-sm text-slate-500 mt-1">{job.department}</p>
-              </div>
-              <div className="flex gap-1 items-center">
-                {job.status === 'Active' && (
-                  <button 
-                    onClick={() => onSelectForApply(job.id)} 
-                    className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors" 
-                    title="Lihat Halaman Pendaftaran (Posting Publik)"
-                  >
-                    <ExternalLink size={16} />
-                  </button>
-                )}
-                <button onClick={() => handleOpenModal(job)} className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Edit">
-                  <Pencil size={16} />
-                </button>
-                {canCreateOrDelete && (
-                  <button onClick={() => setDeleteConfirmId(job.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" title="Hapus">
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 mb-4">
-              <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${statusColors[job.status]}`}>
-                {job.status}
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg">
-                <MapPin size={12} /> {job.location}
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg">
-                <Clock size={12} /> {job.type}
-              </span>
-            </div>
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                <Users size={14} className="text-indigo-500" />
-                <span className="font-semibold">{getJobApplicantCount(job.title)}</span> pelamar
-              </div>
-              {job.hiddenSalary ? (
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-500 bg-slate-50 px-3 py-1 rounded-lg">
-                  <EyeOff size={14} />
-                  <span className="italic">Gaji dirahasiakan</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">
-                  <span>Rp {formatRupiah(job.minSalary)} - {formatRupiah(job.maxSalary)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {jobs.length === 0 && (
-          <div className="col-span-full py-8 text-center text-slate-500">
-            Tidak ada lowongan pekerjaan
-          </div>
+            + Buka Lowongan Baru
+          </button>
         )}
       </div>
 
-      {/* Modal CRUD */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0 bg-slate-50/50">
-              <h3 className="text-lg font-bold text-slate-800">
-                {editingJob ? 'Edit Lowongan' : 'Buat Lowongan Baru'}
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Judul Pekerjaan</label>
-                <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {jobs.map(job => (
+          <div key={job.id} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group relative overflow-hidden">
+            <div>
+              <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Departemen</label>
-                  <input required type="text" value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Lokasi</label>
-                  <input required type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tipe</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm">
-                    <option value="Full-time">Full-time</option>
-                    <option value="Part-time">Part-time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Freelance">Freelance</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                  <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as Job['status']})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm">
-                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md">{job.department}</span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${statusColors[job.status] || 'bg-slate-100 text-slate-600'}`}>{job.status}</span>
+                  </div>
+                  <h3 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{job.title}</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Dibuat pada {job.postedDate}</p>
                 </div>
               </div>
 
-              {/* Salary Section with Hidden Checkbox */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-slate-700">Informasi Gaji</label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.hiddenSalary}
-                      onChange={e => setFormData({...formData, hiddenSalary: e.target.checked})}
-                      className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                    />
-                    <span className="text-xs font-medium text-slate-600">Sembunyikan gaji</span>
-                  </label>
-                </div>
-                {formData.hiddenSalary ? (
-                  <div className="flex items-center gap-2 text-xs text-slate-500 bg-white p-3 rounded-lg border border-slate-200">
-                    <EyeOff size={14} />
-                    <span>Gaji akan ditampilkan sebagai "Gaji dirahasiakan" di publik</span>
-                  </div>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50/50 px-2 py-0.5 rounded-md border border-slate-100/50"><MapPin size={11} /> {job.location}</span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50/50 px-2 py-0.5 rounded-md border border-slate-100/50"><Clock size={11} /> {job.type}</span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 bg-slate-50/50 px-2 py-0.5 rounded-md border border-slate-100/50"><Users size={11} /> {getJobApplicantCount(job.title)} Pelamar</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-50 mt-2">
+              <div className="flex items-center gap-2">
+                {job.hiddenSalary ? (
+                  <span className="text-[11px] font-medium text-slate-400 italic flex items-center gap-1"><EyeOff size={12} /> Gaji Dirahasiakan</span>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Min Salary (Rp)</label>
-                      <input required type="number" min="0" step="500000" placeholder="15000000" value={formData.minSalary || ''} onChange={e => setFormData({...formData, minSalary: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Max Salary (Rp)</label>
-                      <input required type="number" min="0" step="500000" placeholder="25000000" value={formData.maxSalary || ''} onChange={e => setFormData({...formData, maxSalary: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-                    </div>
-                  </div>
+                  <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">Rp {formatRupiah(job.minSalary)} - {formatRupiah(job.maxSalary)}</span>
                 )}
               </div>
 
-              {/* Detail Lowongan */}
-              <div className="pt-2 border-t border-slate-200 mt-2">
-                <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-3">📋 Detail Konten Lowongan (untuk pelamar & analisis ATS)</p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onSelectForApply(job.id)}
+                  title="Lihat Link Eksternal Portal Lamaran Kerja"
+                  className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors"
+                >
+                  <ExternalLink size={15} />
+                </button>
+                {canCreateOrDelete && (
+                  <>
+                    <button
+                      onClick={() => handleOpenEdit(job)}
+                      title="Edit Lowongan Kerja"
+                      className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-amber-600 transition-colors"
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmId(job.id)}
+                      title="Hapus Lowongan Kerja"
+                      className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </>
+                )}
               </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
+      {/* Add / Edit Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl max-h-[90vh] flex flex-col my-8">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl z-10">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Deskripsi Pekerjaan</label>
-                <textarea rows={3} placeholder="Jelaskan secara umum apa yang akan dilakukan kandidat di posisi ini..." value={formData.jobDescription} onChange={e => setFormData({...formData, jobDescription: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" />
+                <h3 className="text-lg font-bold text-slate-800">{editingJob ? 'Edit Lowongan Kerja' : 'Buka Lowongan Pekerjaan Baru'}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Lengkapi data kriteria lowongan yang akan diterbitkan ke portal rekrutmen</p>
               </div>
+              <button onClick={() => setIsModalOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tugas & Tanggung Jawab <span className="text-xs text-slate-400">(satu baris satu poin)</span></label>
-                <textarea rows={4} placeholder="Mengembangkan aplikasi web responsif&#10;Code review junior developer&#10;Optimasi performa aplikasi" value={formData.responsibilities} onChange={e => setFormData({...formData, responsibilities: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none font-mono" />
-              </div>
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Jabatan / Posisi Pekerjaan *</label>
+                  <input required type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Contoh: Senior Frontend Engineer" />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Kualifikasi <span className="text-xs text-slate-400">(satu baris satu poin)</span></label>
-                <textarea rows={4} placeholder="S1 Teknik Informatika&#10;Pengalaman 3 tahun sebagai Frontend Developer&#10;Memahami prinsip Responsive design" value={formData.qualifications} onChange={e => setFormData({...formData, qualifications: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none font-mono" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Skills <span className="text-xs text-slate-400">(pisahkan dengan koma)</span></label>
-                <input type="text" placeholder="React, TypeScript, JavaScript, HTML, CSS, Git" value={formData.skills} onChange={e => setFormData({...formData, skills: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Benefit / Tunjangan <span className="text-xs text-slate-400">(satu baris satu poin)</span></label>
-                <textarea rows={3} placeholder="Gaji kompetitif&#10;BPJS Kesehatan & Ketenagakerjaan&#10;Bonus tahunan" value={formData.benefits} onChange={e => setFormData({...formData, benefits: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none font-mono" />
-              </div>
-
-              <div className="pt-2 border-t border-slate-200">
-                <p className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-3">🎯 Persyaratan Kandidat (untuk filter ATS)</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Pendidikan Min</label>
-                  <select value={formData.preferredEducation} onChange={e => setFormData({...formData, preferredEducation: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm">
-                    <option value="SMA/SMK">SMA/SMK</option>
-                    <option value="D3">D3</option>
-                    <option value="S1">S1</option>
-                    <option value="S2">S2</option>
-                    <option value="S3">S3</option>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Departemen / Divisi *</label>
+                  <select value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+                    <option value="Engineering">Engineering / IT</option>
+                    <option value="Design">Design / Creative</option>
+                    <option value="Product">Product Management</option>
+                    <option value="Marketing">Marketing & Sales</option>
+                    <option value="HR & Legal">HR, GA & Legal</option>
+                    <option value="Finance">Finance & Accounting</option>
+                    <option value="Operations">Operations & Support</option>
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Pengalaman Min</label>
-                  <select value={formData.preferredExperience} onChange={e => setFormData({...formData, preferredExperience: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm">
-                    <option value="Fresh Graduate">Fresh Graduate</option>
-                    <option value="1-2 tahun">1-2 tahun</option>
-                    <option value="3-5 tahun">3-5 tahun</option>
-                    <option value="5-10 tahun">5-10 tahun</option>
-                    <option value="> 10 tahun">&gt; 10 tahun</option>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Status Publikasi Lowongan *</label>
+                  <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+                    {statuses.map(s => <option key={s} value={s}>{s === 'Active' ? 'Active (Tayang)' : s}</option>)}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Lokasi Penempatan *</label>
+                  <input required type="text" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Contoh: Jakarta (Hybrid) / WFH" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Jenis Kontrak Kerja *</label>
+                  <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+                    <option value="Full-time">Full-time (Penuh Waktu)</option>
+                    <option value="Part-time">Part-time (Paruh Waktu)</option>
+                    <option value="Contract">Contract (Kontrak)</option>
+                    <option value="Internship">Internship (Magang)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Gaji Minimum Bulanan (Rp) *</label>
+                  <input required type="number" value={formData.minSalary} onChange={e => setFormData({ ...formData, minSalary: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Contoh: 6000000" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Gaji Maksimum Bulanan (Rp) *</label>
+                  <input required type="number" value={formData.maxSalary} onChange={e => setFormData({ ...formData, maxSalary: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Contoh: 12000000" />
+                </div>
+
+                <div className="sm:col-span-2 flex items-center gap-2 py-1 bg-slate-50 px-3.5 rounded-xl border border-slate-100">
+                  <input type="checkbox" id="hiddenSalary" checked={formData.hiddenSalary} onChange={e => setFormData({ ...formData, hiddenSalary: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                  <label htmlFor="hiddenSalary" className="text-xs font-medium text-slate-600 select-none cursor-pointer">Sembunyikan Rentang Gaji dari Publik (Tampilkan status "Dirahasiakan")</label>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Jurusan Diharapkan <span className="text-xs text-slate-400">(pisahkan dengan koma)</span></label>
-                <input type="text" placeholder="Teknik Informatika, Sistem Informasi, Ilmu Komputer" value={formData.preferredMajors} onChange={e => setFormData({...formData, preferredMajors: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+              <div className="border-t border-slate-100 pt-4">
+                <h4 className="text-xs font-bold text-slate-700 tracking-wider uppercase mb-3 text-indigo-600">Deskripsi & Kriteria Utama Pekerjaan</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Deskripsi Ringkas Pekerjaan *</label>
+                    <textarea required rows={3} value={formData.jobDescription} onChange={e => setFormData({ ...formData, jobDescription: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="Tuliskan gambaran umum posisi ini..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Tanggung Jawab Utama (Satu kriteria per baris) *</label>
+                    <textarea required rows={3} value={formData.responsibilities} onChange={e => setFormData({ ...formData, responsibilities: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="Contoh:&#10;Mengembangkan arsitektur web aplikasi&#10;Melakukan optimasi performa query database" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Kualifikasi Utama (Satu kriteria per baris) *</label>
+                    <textarea required rows={3} value={formData.qualifications} onChange={e => setFormData({ ...formData, qualifications: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="Contoh:&#10;Memiliki pengalaman komersial React minimal 3 tahun&#10;Mampu berkomunikasi dengan baik" />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Jabatan Sebelumnya yang Relevan <span className="text-xs text-slate-400">(pisahkan dengan koma)</span></label>
-                <input type="text" placeholder="Frontend Developer, Lead Frontend Engineer, Web Developer" value={formData.preferredLastPositions} onChange={e => setFormData({...formData, preferredLastPositions: e.target.value})} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
+              <div className="border-t border-slate-100 pt-4">
+                <h4 className="text-xs font-bold text-slate-700 tracking-wider uppercase mb-3 text-indigo-600">Bobot Parameter Mesin Penyaring ATS</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Minimal Pendidikan *</label>
+                    <select value={formData.preferredEducation} onChange={e => setFormData({ ...formData, preferredEducation: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+                      <option value="SMA/SMK">SMA / SMK / Sederajat</option>
+                      <option value="D3">Diploma 3 (D3)</option>
+                      <option value="S1">Sarjana 1 (S1)</option>
+                      <option value="S2">Magister (S2)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Minimal Pengalaman Kerja *</label>
+                    <select value={formData.preferredExperience} onChange={e => setFormData({ ...formData, preferredExperience: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm bg-white">
+                      <option value="Fresh Graduate">Fresh Graduate</option>
+                      <option value="1-2 tahun">1 - 2 Tahun</option>
+                      <option value="3-5 tahun">3 - 5 Tahun</option>
+                      <option value="5-10 tahun">5 - 10 Tahun</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Kata Kunci Keahlian / Skills (Satu per baris) *</label>
+                    <textarea required rows={3} value={formData.skills} onChange={e => setFormData({ ...formData, skills: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="Contoh:&#10;React&#10;TypeScript&#10;TailwindCSS" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Kompensasi & Benefit Tambahan (Satu per baris)</label>
+                    <textarea rows={3} value={formData.benefits} onChange={e => setFormData({ ...formData, benefits: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="Contoh:&#10;BPJS Kesehatan & Ketenagakerjaan&#10;Tunjangan Laptop Perusahaan" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Target Jurusan Pendidikan Relevan (Satu per baris)</label>
+                    <textarea rows={2} value={formData.preferredMajors} onChange={e => setFormData({ ...formData, preferredMajors: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="Contoh:&#10;Teknik Informatika&#10;Sistem Informasi" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Target Jabatan Sebelumnya Relevan (Satu per baris)</label>
+                    <textarea rows={2} value={formData.preferredLastPositions} onChange={e => setFormData({ ...formData, preferredLastPositions: e.target.value })} className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none" placeholder="Contoh:&#10;Frontend Web Developer&#10;Junior Developer" />
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-4 mt-6 border-t border-slate-100 flex justify-end gap-3 shrink-0">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors text-sm">
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0 bg-white rounded-b-2xl -mx-6 -mb-6 z-10">
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors text-sm disabled:opacity-50"
+                >
                   Batal
                 </button>
-                <button type="submit" className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors text-sm">
-                  Simpan
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors text-sm shadow-sm flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Menyimpan ke Cloud...' : 'Simpan Lowongan'}
                 </button>
               </div>
             </form>
@@ -350,15 +368,27 @@ export function JobListings({ onSelectForApply }: { onSelectForApply: (id: numbe
       {/* Delete Confirm */}
       {deleteConfirmId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6 text-center">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6 text-center text-left">
             <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Trash2 size={24} className="text-red-500" />
             </div>
             <h3 className="text-lg font-bold text-slate-800 mb-2">Hapus Lowongan?</h3>
-            <p className="text-sm text-slate-500 mb-6">Lowongan akan dihapus secara permanen.</p>
+            <p className="text-sm text-slate-500 mb-6">Lowongan akan dihapus secara permanen dari database cloud.</p>
             <div className="flex justify-center gap-3">
-              <button onClick={() => setDeleteConfirmId(null)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors text-sm">Batal</button>
-              <button onClick={() => handleDelete(deleteConfirmId)} className="px-5 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors text-sm">Ya, Hapus</button>
+              <button
+                disabled={isSubmitting}
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors text-sm disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                disabled={isSubmitting}
+                onClick={() => handleDelete(deleteConfirmId)}
+                className="px-5 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors text-sm shadow-sm disabled:opacity-50"
+              >
+                {isSubmitting ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
             </div>
           </div>
         </div>
