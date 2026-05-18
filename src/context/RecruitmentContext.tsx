@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Candidate, Job, Interview, SLAConfig } from '../data/mockData';
-import { supabase, isSupabaseConnected } from '../config/supabase';
+import { Candidate, Job, Interview, candidates as initialCandidates, jobs as initialJobs, interviews as initialInterviews, SLAConfig } from '../data/mockData';
 
 const defaultSlaConfig: SLAConfig[] = [
   { stage: 'Screening',   slaDays: 5,  color: '#8b5cf6' },
@@ -143,12 +142,21 @@ interface RecruitmentContextType {
 const RecruitmentContext = createContext<RecruitmentContextType | undefined>(undefined);
 
 export function RecruitmentProvider({ children }: { children: ReactNode }) {
-  // 3.2: Ubah inisialisasi state menjadi kosong []
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [interviews, setInterviews] = useState<Interview[]>([]);
+  // Persist semua data utama ke localStorage agar tidak hilang saat refresh
+  const [candidates, setCandidates] = useState<Candidate[]>(() => {
+    const saved = localStorage.getItem('recruitflow_candidates');
+    return saved ? JSON.parse(saved) : initialCandidates;
+  });
+  const [jobs, setJobs] = useState<Job[]>(() => {
+    const saved = localStorage.getItem('recruitflow_jobs');
+    return saved ? JSON.parse(saved) : initialJobs;
+  });
+  const [interviews, setInterviews] = useState<Interview[]>(() => {
+    const saved = localStorage.getItem('recruitflow_interviews');
+    return saved ? JSON.parse(saved) : initialInterviews;
+  });
 
-  // Tetap sinkronkan ke localStorage sebagai cadangan lokal (opsional)
+  // Sync data utama ke localStorage setiap kali berubah
   useEffect(() => { localStorage.setItem('recruitflow_candidates', JSON.stringify(candidates)); }, [candidates]);
   useEffect(() => { localStorage.setItem('recruitflow_jobs', JSON.stringify(jobs)); }, [jobs]);
   useEffect(() => { localStorage.setItem('recruitflow_interviews', JSON.stringify(interviews)); }, [interviews]);
@@ -163,9 +171,19 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : null;
   });
   const [selectedJobIdForApply, setSelectedJobIdForApply] = useState<number | null>(null);
-  const [adminAccounts, setAdminAccounts] = useState<AdminAccount[]>(defaultAdmins);
-  const [portalLinks, setPortalLinks] = useState<PortalLinkInfo[]>(defaultPortalLinks);
-  const [notifications, setNotifications] = useState<AppNotification[]>(defaultNotifications);
+  
+  const [adminAccounts, setAdminAccounts] = useState<AdminAccount[]>(() => {
+    const saved = localStorage.getItem('recruitflow_adminAccounts');
+    return saved ? JSON.parse(saved) : defaultAdmins;
+  });
+  const [portalLinks, setPortalLinks] = useState<PortalLinkInfo[]>(() => {
+    const saved = localStorage.getItem('recruitflow_portalLinks');
+    return saved ? JSON.parse(saved) : defaultPortalLinks;
+  });
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
+    const saved = localStorage.getItem('recruitflow_notifications');
+    return saved ? JSON.parse(saved) : defaultNotifications;
+  });
   const [hiringBudget, setHiringBudgetState] = useState<number>(() => {
     const saved = localStorage.getItem('recruitflow_hiringBudget');
     return saved ? Number(saved) : 100000000;
@@ -186,44 +204,6 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('recruitflow_slaConfig', JSON.stringify(newConfig));
   };
 
-  // 3.3: Tambahkan Fungsi Fetch Data Awal & Real-Time Listener Supabase
-  const fetchInitialData = async () => {
-    if (!isSupabaseConnected) return;
-
-    // Fetch Candidates
-    const { data: candidatesData, error: candidatesError } = await supabase.from('candidates').select('*');
-    if (candidatesError) console.error('Error fetching candidates:', candidatesError);
-    else if (candidatesData) setCandidates(candidatesData as any);
-
-    // Fetch Jobs
-    const { data: jobsData, error: jobsError } = await supabase.from('jobs').select('*');
-    if (jobsError) console.error('Error fetching jobs:', jobsError);
-    else if (jobsData) setJobs(jobsData as any);
-
-    // Fetch Interviews
-    const { data: interviewsData, error: interviewsError } = await supabase.from('interviews').select('*');
-    if (interviewsError) console.error('Error fetching interviews:', interviewsError);
-    else if (interviewsData) setInterviews(interviewsData as any);
-  };
-
-  // Dengarkan perubahan di database secara real-time
-  useEffect(() => {
-    if (!isSupabaseConnected) return;
-
-    fetchInitialData();
-
-    const channel = supabase
-      .channel('db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, fetchInitialData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, fetchInitialData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'interviews' }, fetchInitialData)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
   const [systemSettings, setSystemSettingsState] = useState<SystemSettings>(() => {
     const saved = localStorage.getItem('recruitflow_systemSettings');
     return saved ? JSON.parse(saved) : { emailNotifications: true, autoScreening: false, calendarIntegration: true, medicalMandatory: true };
@@ -236,7 +216,7 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
 
   const canCreateOrDelete = currentAdmin ? (currentAdmin.role === 'Super Admin' || currentAdmin.role === 'HR Manager') : false;
   // Admin & Recruiter can CREATE job postings, but cannot delete
-  const canCreateJobs = currentAdmin ? true : false; // All logged-in admin/recruiter roles can create jobs
+  const canCreateJobs = currentAdmin ? true : false; 
   const canAccessSettings = currentAdmin ? (currentAdmin.role === 'Super Admin' || currentAdmin.role === 'HR Manager') : false;
 
   // Sync login state to sessionStorage so it survives page refresh
@@ -268,196 +248,101 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem('recruitflow_activeTab');
   };
 
-  // ==========================================
-  // ✍️ INTEGRASI CRUD SUPABASE DENGAN REALTIME (DAN FALLBACK LOKAL)
-  // ==========================================
-
   // Helper untuk menambah notifikasi
-  const triggerNotification = async (title: string, message: string, type: 'candidate' | 'interview' | 'system') => {
+  const triggerNotification = (title: string, message: string, type: 'candidate' | 'interview' | 'system') => {
     const newId = Date.now();
     const notifItem: AppNotification = { id: newId, title, message, time: 'Baru saja', read: false, type };
-    if (isSupabaseConnected) {
-      await supabase.from('notifications').insert([notifItem]);
-    } else {
-      setNotifications(prev => [notifItem, ...prev]);
-    }
+    setNotifications(prev => [notifItem, ...prev]);
   };
 
-  // CANDIDATES CRUD
-  const addCandidate = async (candidateData: Omit<Candidate, 'id'>) => {
+  // Candidates
+  const addCandidate = (candidateData: Omit<Candidate, 'id'>) => {
     const newId = Date.now();
     const newCandidate: Candidate = { ...candidateData, id: newId };
+    setCandidates(prev => [newCandidate, ...prev]);
     
-    if (isSupabaseConnected) {
-      const { error } = await supabase.from('candidates').insert([newCandidate]);
-      if (error) console.error("Gagal insert kandidat:", error);
-    } else {
-      setCandidates(prev => [newCandidate, ...prev]);
-    }
-    await triggerNotification('Lamaran Baru Masuk!', `${newCandidate.name} telah melamar posisi ${newCandidate.position}`, 'candidate');
+    // Add notification when a new candidate applies or is added
+    triggerNotification('Lamaran Baru Masuk!', `${newCandidate.name} telah melamar posisi ${newCandidate.position}`, 'candidate');
   };
 
-  const updateCandidate = async (id: number, updatedFields: Partial<Candidate>) => {
-    if (isSupabaseConnected) {
-      await supabase.from('candidates').update(updatedFields).eq('id', id);
-    } else {
-      setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
-    }
+  const updateCandidate = (id: number, updatedFields: Partial<Candidate>) => {
+    setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
   };
 
-  const deleteCandidate = async (id: number) => {
-    if (isSupabaseConnected) {
-      await supabase.from('candidates').delete().eq('id', id);
-    } else {
-      setCandidates(prev => prev.filter(c => c.id !== id));
-    }
+  const deleteCandidate = (id: number) => {
+    setCandidates(prev => prev.filter(c => c.id !== id));
   };
 
-  // JOBS CRUD
-  const addJob = async (jobData: Omit<Job, 'id'>) => {
+  // Jobs
+  const addJob = (jobData: Omit<Job, 'id'>) => {
     const newId = Date.now();
     const newJob: Job = { ...jobData, id: newId };
-    if (isSupabaseConnected) {
-      await supabase.from('jobs').insert([newJob]);
-    } else {
-      setJobs(prev => [...prev, newJob]);
-    }
+    setJobs(prev => [...prev, newJob]);
   };
 
-  const updateJob = async (id: number, updatedFields: Partial<Job>) => {
-    if (isSupabaseConnected) {
-      await supabase.from('jobs').update(updatedFields).eq('id', id);
-    } else {
-      setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updatedFields } : j));
-    }
+  const updateJob = (id: number, updatedFields: Partial<Job>) => {
+    setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updatedFields } : j));
   };
 
-  const deleteJob = async (id: number) => {
-    if (isSupabaseConnected) {
-      await supabase.from('jobs').delete().eq('id', id);
-    } else {
-      setJobs(prev => prev.filter(j => j.id !== id));
-    }
+  const deleteJob = (id: number) => {
+    setJobs(prev => prev.filter(j => j.id !== id));
   };
 
-  // INTERVIEWS CRUD
-  const addInterview = async (interviewData: Omit<Interview, 'id'>) => {
+  // Interviews
+  const addInterview = (interviewData: Omit<Interview, 'id'>) => {
     const newId = Date.now();
     const newInterview: Interview = { ...interviewData, id: newId };
-    if (isSupabaseConnected) {
-      await supabase.from('interviews').insert([newInterview]);
-    } else {
-      setInterviews(prev => [newInterview, ...prev]);
-    }
-    await triggerNotification('Jadwal Wawancara', `Wawancara dengan ${newInterview.candidateName} dijadwalkan pada ${newInterview.date}`, 'interview');
+    setInterviews(prev => [newInterview, ...prev]);
+
+    triggerNotification('Jadwal Wawancara', `Wawancara dengan ${newInterview.candidateName} dijadwalkan pada ${newInterview.date}`, 'interview');
   };
 
-  const updateInterview = async (id: number, updatedFields: Partial<Interview>) => {
-    if (isSupabaseConnected) {
-      await supabase.from('interviews').update(updatedFields).eq('id', id);
-    } else {
-      setInterviews(prev => prev.map(i => i.id === id ? { ...i, ...updatedFields } : i));
-    }
+  const updateInterview = (id: number, updatedFields: Partial<Interview>) => {
+    setInterviews(prev => prev.map(i => i.id === id ? { ...i, ...updatedFields } : i));
   };
 
-  const deleteInterview = async (id: number) => {
-    if (isSupabaseConnected) {
-      await supabase.from('interviews').delete().eq('id', id);
-    } else {
-      setInterviews(prev => prev.filter(i => i.id !== id));
-    }
+  const deleteInterview = (id: number) => {
+    setInterviews(prev => prev.filter(i => i.id !== id));
   };
 
-  // ADMIN ACCOUNTS CRUD
-  const addAdminAccount = async (account: Omit<AdminAccount, 'id'>) => {
+  // Admin Accounts CRUD
+  const addAdminAccount = (account: Omit<AdminAccount, 'id'>) => {
     const newId = Date.now();
-    if (isSupabaseConnected) {
-      await supabase.from('admin_accounts').insert([{ ...account, id: newId }]);
-    } else {
-      setAdminAccounts(prev => [...prev, { ...account, id: newId }]);
-    }
+    setAdminAccounts(prev => [...prev, { ...account, id: newId }]);
   };
 
-  const updateAdminAccount = async (id: number, updatedFields: Partial<AdminAccount>) => {
-    if (isSupabaseConnected) {
-      await supabase.from('admin_accounts').update(updatedFields).eq('id', id);
-    } else {
-      setAdminAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updatedFields } : a));
-    }
+  const updateAdminAccount = (id: number, updatedFields: Partial<AdminAccount>) => {
+    setAdminAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updatedFields } : a));
   };
 
-  const deleteAdminAccount = async (id: number) => {
-    if (isSupabaseConnected) {
-      await supabase.from('admin_accounts').delete().eq('id', id);
-    } else {
-      setAdminAccounts(prev => prev.filter(a => a.id !== id));
-    }
+  const deleteAdminAccount = (id: number) => {
+    setAdminAccounts(prev => prev.filter(a => a.id !== id));
   };
 
-  // PORTAL LINKS CRUD
-  const addPortalLink = async (portalLink: Omit<PortalLinkInfo, 'id' | 'isActive'>) => {
+  // Portal Links CRUD
+  const addPortalLink = (portalLink: Omit<PortalLinkInfo, 'id' | 'isActive'>) => {
     const newId = Date.now();
     const isFirst = portalLinks.length === 0;
-    const newLink = { ...portalLink, id: newId, isActive: isFirst };
-    if (isSupabaseConnected) {
-      await supabase.from('portal_links').insert([newLink]);
-    } else {
-      setPortalLinks(prev => [...prev, newLink]);
-    }
+    setPortalLinks(prev => [...prev, { ...portalLink, id: newId, isActive: isFirst }]);
   };
 
-  const updatePortalLink = async (id: number, updatedFields: Partial<PortalLinkInfo>) => {
-    if (isSupabaseConnected) {
-      await supabase.from('portal_links').update(updatedFields).eq('id', id);
-    } else {
-      setPortalLinks(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
-    }
+  const updatePortalLink = (id: number, updatedFields: Partial<PortalLinkInfo>) => {
+    setPortalLinks(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
   };
 
-  const deletePortalLink = async (id: number) => {
-    if (isSupabaseConnected) {
-      await supabase.from('portal_links').delete().eq('id', id);
-    } else {
-      const filtered = portalLinks.filter(p => p.id !== id);
-      if (filtered.length > 0 && !filtered.some(p => p.isActive)) filtered[0].isActive = true;
-      setPortalLinks(filtered);
+  const deletePortalLink = (id: number) => {
+    const filtered = portalLinks.filter(p => p.id !== id);
+    if (filtered.length > 0 && !filtered.some(p => p.isActive)) {
+      filtered[0].isActive = true;
     }
+    setPortalLinks(filtered);
   };
 
-  const setActivePortalLink = async (id: number) => {
-    if (isSupabaseConnected) {
-      await supabase.from('portal_links').update({ isActive: false }).neq('id', id);
-      await supabase.from('portal_links').update({ isActive: true }).eq('id', id);
-    } else {
-      setPortalLinks(prev => prev.map(p => ({ ...p, isActive: p.id === id })));
-    }
-  };
-
-  // NOTIFICATIONS
-  const markNotificationAsRead = async (id: number) => {
-    if (isSupabaseConnected) {
-      await supabase.from('notifications').update({ read: true }).eq('id', id);
-    } else {
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    }
-  };
-
-  const markAllNotificationsAsRead = async () => {
-    if (isSupabaseConnected) {
-      await supabase.from('notifications').update({ read: true }).eq('read', false);
-    } else {
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    }
-  };
-
-  const addNotification = async (notification: Omit<AppNotification, 'id' | 'read'>) => {
-    const newId = Date.now();
-    const notifItem: AppNotification = { ...notification, id: newId, read: false };
-    if (isSupabaseConnected) {
-      await supabase.from('notifications').insert([notifItem]);
-    } else {
-      setNotifications(prev => [notifItem, ...prev]);
-    }
+  const setActivePortalLink = (id: number) => {
+    setPortalLinks(prev => prev.map(p => ({
+      ...p,
+      isActive: p.id === id
+    })));
   };
 
   // Utility: hitung jumlah pelamar berdasarkan data kandidat aktual
@@ -468,6 +353,25 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
       jobTitle.toLowerCase().includes(c.position.toLowerCase())
     ).length;
   };
+
+  // Notifications
+  const markNotificationAsRead = (id: number) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const addNotification = (notification: Omit<AppNotification, 'id' | 'read'>) => {
+    const newId = Date.now();
+    setNotifications(prev => [{ ...notification, id: newId, read: false }, ...prev]);
+  };
+
+  // Sync other states to local storage
+  useEffect(() => { localStorage.setItem('recruitflow_adminAccounts', JSON.stringify(adminAccounts)); }, [adminAccounts]);
+  useEffect(() => { localStorage.setItem('recruitflow_portalLinks', JSON.stringify(portalLinks)); }, [portalLinks]);
+  useEffect(() => { localStorage.setItem('recruitflow_notifications', JSON.stringify(notifications)); }, [notifications]);
 
   return (
     <RecruitmentContext.Provider value={{
