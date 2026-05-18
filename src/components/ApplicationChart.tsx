@@ -106,7 +106,12 @@ export function ApplicationChart() {
         <DetailPopup
           title={`Daftar Pelamar Bulan: ${popup.month}`}
           data={popup.candidates}
-          columns={[\n            { key: 'name', label: 'Nama Pelamar' },\n            { key: 'position', label: 'Posisi Lowongan' },\n            { key: 'stage', label: 'Status Tahap' },\n            { key: 'date', label: 'Tanggal Melamar' },\n          ]}
+          columns={[
+            { key: 'name', label: 'Nama Pelamar' },
+            { key: 'position', label: 'Posisi Lowongan' },
+            { key: 'stage', label: 'Status Tahap' },
+            { key: 'date', label: 'Tanggal Melamar' }
+          ]}
           onClose={() => setPopup(null)}
         />
       )}
@@ -114,7 +119,7 @@ export function ApplicationChart() {
   );
 }
 
-// 2. GRAFIK DISTRIBUSI PER DEPARTEMEN (PERBAIKAN SINKRONISASI SEPENUHNYA DINAMIS)
+// 2. GRAFIK DISTRIBUSI PER DEPARTEMEN (SINKRONISASI DINAMIS & BERSIH)
 export function DepartmentChart() {
   const { jobs, candidates } = useRecruitment();
   const [popup, setPopup] = useState<any | null>(null);
@@ -178,7 +183,7 @@ export function DepartmentChart() {
             { key: 'title', label: 'Nama Posisi Jabatan' },
             { key: 'status', label: 'Status Loker' },
             { key: 'applicants', label: 'Jumlah Pelamar' },
-            { key: 'postedDate', label: 'Tanggal Tayang' },
+            { key: 'postedDate', label: 'Tanggal Tayang' }
           ]}
           onClose={() => setPopup(null)}
         />
@@ -251,7 +256,7 @@ export function CostHiringChart() {
             { key: 'month', label: 'Bulan' },
             { key: 'candidatesCount', label: 'Kandidat Lolos (Hired)' },
             { key: 'cost', label: 'Total Biaya Pengeluaran', format: (v) => `Rp ${v.toLocaleString('id-ID')}` },
-            { key: 'budget', label: 'Sisa Anggaran Terjaga', format: (v) => `Rp ${v.toLocaleString('id-ID')}` },
+            { key: 'budget', label: 'Sisa Anggaran Terjaga', format: (v) => `Rp ${v.toLocaleString('id-ID')}` }
           ]}
           onClose={() => setPopup(null)}
         />
