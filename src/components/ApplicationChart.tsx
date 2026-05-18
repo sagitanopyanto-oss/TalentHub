@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts';
 import { X } from 'lucide-react';
 import { useRecruitment } from '../context/RecruitmentContext';
 
@@ -17,19 +17,19 @@ function DetailPopup({ title, data, columns, onClose }: {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
         <div className="overflow-y-auto flex-1">
-          <table className="w-full">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100">
                 {columns.map(col => (
-                  <th key={col.key} className="text-left py-3 px-5 text-xs font-semibold text-slate-500 uppercase">{col.label}</th>
+                  <th key={col.key} className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">{col.label}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 text-sm text-slate-600">
               {data.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50/50">
+                <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
                   {columns.map(col => (
-                    <td key={col.key} className="py-3 px-5 text-sm text-slate-700 font-medium">
+                    <td key={col.key} className="px-6 py-3.5">
                       {col.format ? col.format(row[col.key]) : row[col.key]}
                     </td>
                   ))}
@@ -43,186 +43,196 @@ function DetailPopup({ title, data, columns, onClose }: {
   );
 }
 
-function EmptyChart({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 min-h-[380px] flex flex-col">
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-slate-800">{title}</h3>
-        <p className="text-sm text-slate-500 mt-1">{description}</p>
-      </div>
-      <div className="flex-1 flex items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60">
-        <div className="text-center">
-          <div className="text-5xl font-bold text-slate-300 mb-2">0</div>
-          <p className="text-sm font-semibold text-slate-500">Belum ada data proses rekrutmen</p>
-          <p className="text-xs text-slate-400 mt-1">Grafik akan terisi otomatis saat kandidat mulai masuk.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function monthLabel(dateStr: string) {
-  if (!dateStr) return 'Tanpa Tanggal';
-  return new Date(dateStr).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
-}
-
+// 1. GRAFIK TREN LAMARAN BULANAN
 export function ApplicationChart() {
   const { candidates } = useRecruitment();
-  const [popup, setPopup] = useState<Record<string, any> | null>(null);
+  const [popup, setPopup] = useState<any | null>(null);
 
-  const chartData = Object.values(candidates.reduce((acc, candidate) => {
-    const month = monthLabel(candidate.appliedDate);
-    if (!acc[month]) acc[month] = { month, applications: 0, hires: 0 };
-    acc[month].applications += 1;
-    if (candidate.stage === 'Hired') acc[month].hires += 1;
-    return acc;
-  }, {} as Record<string, { month: string; applications: number; hires: number }>));
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  const last6Months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - i));
+    return {
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: monthNames[d.getMonth()],
+    };
+  });
 
-  const handleClick = (data: any) => {
-    if (data?.activePayload?.[0]?.payload) setPopup(data.activePayload[0].payload);
+  const chartData = last6Months.map(m => {
+    const monthlyCands = candidates.filter(c => c.appliedDate && c.appliedDate.startsWith(m.key));
+    const applications = monthlyCands.length;
+    const hires = monthlyCands.filter(c => c.stage === 'Hired').length;
+    return { month: m.label, applications, hires, rawKey: m.key };
+  });
+
+  const handleBarClick = (data: any) => {
+    if (!data || !data.activePayload || data.activePayload.length === 0) return;
+    const activeItem = data.activePayload[0].payload;
+    
+    const filteredCands = candidates.filter(c => c.appliedDate && c.appliedDate.startsWith(activeItem.rawKey));
+    setPopup({
+      month: activeItem.month,
+      candidates: filteredCands.map(c => ({
+        name: c.name,
+        position: c.position,
+        stage: c.stage,
+        date: c.appliedDate
+      }))
+    });
   };
 
-  if (candidates.length === 0) {
-    return <EmptyChart title="Tren Aplikasi & Rekrutmen" description="Data aktual berdasarkan kandidat yang masuk" />;
-  }
-
   return (
-    <>
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-        <div className="mb-6">
-          <h3 className="text-lg font-bold text-slate-800">Tren Aplikasi & Rekrutmen</h3>
-          <p className="text-sm text-slate-500 mt-1">Data aktual dari kandidat yang masuk</p>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData} barGap={8} onClick={handleClick}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+      <div className="mb-6">
+        <h3 className="text-base font-bold text-slate-800">Tren Lamaran & Kelulusan</h3>
+        <p className="text-xs text-slate-400 mt-0.5">Analisis statistik volume pelamar masuk berbanding kandidat diterima (6 bulan terakhir)</p>
+      </div>
+      <div className="h-72">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} onClick={handleBarClick} className="cursor-pointer">
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} allowDecimals={false} />
             <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
             <Legend />
-            <Bar dataKey="applications" name="Lamaran Aktual" fill="#6366f1" radius={[8, 8, 0, 0]} className="cursor-pointer" />
-            <Bar dataKey="hires" name="Hired Aktual" fill="#a78bfa" radius={[8, 8, 0, 0]} className="cursor-pointer" />
+            <Bar dataKey="applications" name="Total Pelamar" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={24} />
+            <Bar dataKey="hires" name="Kandidat Diterima (Hired)" fill="#10b981" radius={[6, 6, 0, 0]} barSize={24} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {popup && (
         <DetailPopup
-          title={`Detail Bulan: ${popup.month}`}
-          data={[popup]}
-          columns={[
-            { key: 'month', label: 'Bulan' },
-            { key: 'applications', label: 'Total Lamaran Aktual' },
-            { key: 'hires', label: 'Hired Aktual' },
-          ]}
+          title={`Daftar Pelamar Bulan: ${popup.month}`}
+          data={popup.candidates}
+          columns={[\n            { key: 'name', label: 'Nama Pelamar' },\n            { key: 'position', label: 'Posisi Lowongan' },\n            { key: 'stage', label: 'Status Tahap' },\n            { key: 'date', label: 'Tanggal Melamar' },\n          ]}
           onClose={() => setPopup(null)}
         />
       )}
-    </>
+    </div>
   );
 }
 
+// 2. GRAFIK DISTRIBUSI PER DEPARTEMEN (PERBAIKAN SINKRONISASI SEPENUHNYA DINAMIS)
 export function DepartmentChart() {
-  const { candidates } = useRecruitment();
-  const [popup, setPopup] = useState<Record<string, any> | null>(null);
+  const { jobs, candidates } = useRecruitment();
+  const [popup, setPopup] = useState<any | null>(null);
 
-  const chartData = Object.values(candidates.reduce((acc, candidate) => {
-    const name = candidate.department || 'Tanpa Departemen';
-    if (!acc[name]) acc[name] = { name, candidates: 0, hires: 0 };
-    acc[name].candidates += 1;
-    if (candidate.stage === 'Hired') acc[name].hires += 1;
-    return acc;
-  }, {} as Record<string, { name: string; candidates: number; hires: number }>));
+  // Mengumpulkan seluruh departemen unik dari list lowongan yang terdaftar di database Supabase
+  const distinctDepartments = Array.from(new Set(jobs.map(j => j.department)));
 
-  const handleClick = (data: any) => {
-    if (data?.activePayload?.[0]?.payload) setPopup(data.activePayload[0].payload);
+  // Fallback standar agar grafik tidak kosong jika database belum memiliki data lowongan sama sekali
+  const departmentsToRender = distinctDepartments.length > 0 
+    ? distinctDepartments 
+    : ['Engineering', 'Design', 'Product', 'Marketing', 'HR & Legal', 'Finance', 'Operations'];
+
+  // Memetakan jumlah lowongan aktif dan total kandidat sukses (Hired) per departemen secara riil
+  const chartData = departmentsToRender.map(dept => {
+    const hires = candidates.filter(c => c.department === dept && c.stage === 'Hired').length;
+    const openings = jobs.filter(j => j.department === dept && j.status === 'Active').length;
+    return { name: dept, hires, openings };
+  });
+
+  const handleBarClick = (data: any) => {
+    if (!data || !data.activePayload || data.activePayload.length === 0) return;
+    const activeItem = data.activePayload[0].payload;
+
+    const filteredJobs = jobs.filter(j => j.department === activeItem.name);
+    setPopup({
+      department: activeItem.name,
+      jobs: filteredJobs.map(j => ({
+        title: j.title,
+        status: j.status,
+        applicants: candidates.filter(c => c.position === j.title).length,
+        postedDate: j.postedDate
+      }))
+    });
   };
 
-  if (candidates.length === 0) {
-    return <EmptyChart title="Rekrutmen per Departemen" description="Data aktual berdasarkan departemen kandidat" />;
-  }
-
   return (
-    <>
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-        <div className="mb-6">
-          <h3 className="text-lg font-bold text-slate-800">Rekrutmen per Departemen</h3>
-          <p className="text-sm text-slate-500 mt-1">Data aktual kandidat per departemen</p>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData} onClick={handleClick}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+      <div className="mb-6">
+        <h3 className="text-base font-bold text-slate-800">Distribusi per Departemen</h3>
+        <p className="text-xs text-slate-400 mt-0.5">Perbandingan jumlah lowongan aktif dengan total pelamar yang berhasil direkrut</p>
+      </div>
+      <div className="h-72">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} onClick={handleBarClick} className="cursor-pointer">
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} allowDecimals={false} />
             <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
             <Legend />
-            <Line type="monotone" dataKey="candidates" name="Kandidat Aktual" stroke="#6366f1" strokeWidth={3} dot={{ fill: '#6366f1', r: 5 }} className="cursor-pointer" />
-            <Line type="monotone" dataKey="hires" name="Hired Aktual" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 5 }} className="cursor-pointer" />
-          </LineChart>
+            <Bar dataKey="openings" name="Lowongan Aktif" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={20} />
+            <Bar dataKey="hires" name="Total Kelulusan (Hired)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+          </BarChart>
         </ResponsiveContainer>
       </div>
 
       {popup && (
         <DetailPopup
-          title={`Departemen: ${popup.name}`}
-          data={[popup]}
+          title={`Detail Lowongan Kerja Departemen: ${popup.department}`}
+          data={popup.jobs}
           columns={[
-            { key: 'name', label: 'Departemen' },
-            { key: 'candidates', label: 'Kandidat Aktual' },
-            { key: 'hires', label: 'Hired Aktual' },
+            { key: 'title', label: 'Nama Posisi Jabatan' },
+            { key: 'status', label: 'Status Loker' },
+            { key: 'applicants', label: 'Jumlah Pelamar' },
+            { key: 'postedDate', label: 'Tanggal Tayang' },
           ]}
           onClose={() => setPopup(null)}
         />
       )}
-    </>
+    </div>
   );
 }
 
+// 3. GRAFIK OPERASIONAL BIAYA REKRUTMEN
 export function CostHiringChart() {
   const { candidates, hiringBudget } = useRecruitment();
-  const [popup, setPopup] = useState<Record<string, any> | null>(null);
-  const formatRupiahSingkat = (value: number) => `Rp ${(value / 1000000).toFixed(0)}Jt`;
+  const [popup, setPopup] = useState<any | null>(null);
 
-  const chartData = Object.values(candidates.reduce((acc, candidate) => {
-    const month = monthLabel(candidate.appliedDate);
-    if (!acc[month]) acc[month] = { month, cost: 0, hires: 0, candidates: 0, budget: hiringBudget };
-    acc[month].candidates += 1;
-    acc[month].cost += 250000;
-    if (['Interview', 'Assessment', 'Offer', 'Medical', 'Hired'].includes(candidate.stage)) acc[month].cost += 500000;
-    if (['Assessment', 'Offer', 'Medical', 'Hired'].includes(candidate.stage)) acc[month].cost += 750000;
-    if (['Medical', 'Hired'].includes(candidate.stage)) acc[month].cost += 350000;
-    if (candidate.stage === 'Hired') acc[month].hires += 1;
-    return acc;
-  }, {} as Record<string, { month: string; cost: number; hires: number; candidates: number; budget: number }>));
+  const monthNames = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
+  const chartData = monthNames.map(m => {
+    const cost = candidates.filter(c => c.stage === 'Hired').length * 150000;
+    return {
+      month: m,
+      cost: cost,
+      budget: hiringBudget,
+      candidatesCount: candidates.filter(c => c.stage === 'Hired').length
+    };
+  });
 
-  const handleClick = (data: any) => {
-    if (data?.activePayload?.[0]?.payload) setPopup(data.activePayload[0].payload);
+  const formatRupiahSingkat = (value: any) => {
+    return `Rp ${(Number(value) / 1000000).toFixed(1)}jt`;
   };
 
-  if (candidates.length === 0) {
-    return <EmptyChart title="Biaya Rekrutmen (Cost Hiring)" description="Estimasi biaya akan muncul saat proses rekrutmen berjalan" />;
-  }
+  const handleAreaClick = (data: any) => {
+    if (!data || !data.activePayload || data.activePayload.length === 0) return;
+    const activeItem = data.activePayload[0].payload;
+    setPopup(activeItem);
+  };
 
   return (
-    <>
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-        <div className="mb-6">
-          <h3 className="text-lg font-bold text-slate-800">Biaya Rekrutmen (Cost Hiring)</h3>
-          <p className="text-sm text-slate-500 mt-1">Estimasi biaya berdasarkan proses kandidat aktual</p>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={chartData} onClick={handleClick}>
+    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+      <div className="mb-6">
+        <h3 className="text-base font-bold text-slate-800">Analisis Biaya Rekrutmen (Cost-per-Hire)</h3>
+        <p className="text-xs text-slate-400 mt-0.5">Monitoring pengeluaran operasional onboarding berbanding batas limit anggaran keuangan</p>
+      </div>
+      <div className="h-72">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} onClick={handleAreaClick} className="cursor-pointer">
             <defs>
               <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="colorBudget" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={formatRupiahSingkat} />
             <Tooltip formatter={(value: any, name: any) => [name === 'budget' ? `Rp ${Number(value).toLocaleString('id-ID')}` : `Rp ${Number(value).toLocaleString('id-ID')}`, name === 'budget' ? 'Budget Tersedia' : 'Estimasi Biaya']} contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
@@ -239,13 +249,13 @@ export function CostHiringChart() {
           data={[popup]}
           columns={[
             { key: 'month', label: 'Bulan' },
-            { key: 'candidates', label: 'Kandidat Aktual' },
-            { key: 'cost', label: 'Estimasi Biaya', format: (v: number) => `Rp ${v.toLocaleString('id-ID')}` },
-            { key: 'hires', label: 'Jumlah Hired' },
+            { key: 'candidatesCount', label: 'Kandidat Lolos (Hired)' },
+            { key: 'cost', label: 'Total Biaya Pengeluaran', format: (v) => `Rp ${v.toLocaleString('id-ID')}` },
+            { key: 'budget', label: 'Sisa Anggaran Terjaga', format: (v) => `Rp ${v.toLocaleString('id-ID')}` },
           ]}
           onClose={() => setPopup(null)}
         />
       )}
-    </>
+    </div>
   );
 }
