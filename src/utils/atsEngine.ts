@@ -1,3 +1,4 @@
+// Jika suatu saat tipe data dipindah ke folder types global, Anda tinggal menyesuaikan import ini
 import { Candidate, Job } from '../data/mockData';
 
 // Peta level pendidikan untuk perhitungan skor
@@ -44,9 +45,10 @@ export interface ATSResult {
 
 /**
  * Helper: Cek apakah teks kandidat mengandung kata kunci (case-insensitive)
- * Mendukung partial match untuk frasa multi-kata
+ * Aman dari error jika candidateText bernilai undefined/null
  */
-function textContainsKeyword(candidateText: string, keyword: string): boolean {
+function textContainsKeyword(candidateText: string | null | undefined, keyword: string): boolean {
+  if (!candidateText) return false;
   return candidateText.toLowerCase().includes(keyword.toLowerCase());
 }
 
@@ -54,11 +56,17 @@ function textContainsKeyword(candidateText: string, keyword: string): boolean {
  * Helper: Hitung kata-kata penting dari kalimat tugas/kualifikasi
  * dan cek seberapa banyak yang ada di teks kandidat
  */
-function calculateTextMatch(candidateText: string, sentences: string[]): { matched: string[]; score: number } {
+function calculateTextMatch(candidateText: string, sentences: string[] | null | undefined): { matched: string[]; score: number } {
   const matched: string[] = [];
+  if (!sentences || !Array.isArray(sentences) || sentences.length === 0) {
+    return { matched, score: 0 };
+  }
+  
   const text = candidateText.toLowerCase();
 
   sentences.forEach(sentence => {
+    if (!sentence) return;
+    
     // Ekstrak kata-kata penting (>4 huruf) dari kalimat
     const importantWords = sentence.toLowerCase()
       .replace(/[.,()/'\-]/g, ' ')
@@ -75,12 +83,12 @@ function calculateTextMatch(candidateText: string, sentences: string[]): { match
     }
   });
 
-  const score = sentences.length > 0 ? Math.round((matched.length / sentences.length) * 100) : 0;
+  const score = Math.round((matched.length / sentences.length) * 100);
   return { matched, score };
 }
 
 export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined): ATSResult {
-  // Gabung semua teks dari kandidat untuk pencarian kata kunci
+  // Gabung semua teks dari kandidat untuk pencarian kata kunci secara aman
   const candidateFullText = `
     ${candidate.coverLetter || ''}
     ${candidate.lastPosition || ''}
@@ -90,7 +98,7 @@ export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined):
     ${candidate.portfolioLink || ''}
   `.toLowerCase();
 
-  // Jika job tidak ditemukan, return default low score
+  // Jika lowongan tidak ditemukan atau tidak aktif, kembalikan skor minimal default secara aman
   if (!job) {
     return {
       score: 30,
@@ -106,35 +114,39 @@ export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined):
       matchedResponsibilities: [], responsibilityScore: 0,
       matchedQualifications: [], qualificationScore: 0,
       cvScore: candidate.cvData ? 100 : 0,
-      summary: `Posisi "${candidate.position}" yang dilamar tidak ditemukan dalam daftar lowongan aktif. Tidak dapat dilakukan analisis kecocokan.`,
+      summary: `Posisi "${candidate.position || 'Unknown'}" yang dilamar tidak ditemukan dalam daftar lowongan aktif. Tidak dapat dilakukan analisis kecocokan.`,
       recommendation: 'Periksa kembali data posisi atau hubungi tim HR.',
       strengthsArr: [],
       weaknessesArr: ['Posisi lowongan tidak terdefinisi'],
-      contactInfo: { phone: candidate.phone || '-', email: candidate.email, portfolio: candidate.portfolioLink || '-' },
-      appliedForJob: candidate.position,
+      contactInfo: { phone: candidate.phone || '-', email: candidate.email || '-', portfolio: candidate.portfolioLink || '-' },
+      appliedForJob: candidate.position || 'Unknown',
     };
   }
 
   // === 1. Analisis Pendidikan ===
-  const candEduLevel = educationLevels[candidate.education] || 0;
-  const reqEduLevel = educationLevels[job.preferredEducation] || 3;
+  const candEduLevel = educationLevels[candidate.education || ''] || 0;
+  const reqEduLevel = educationLevels[job.preferredEducation || ''] || 3;
   const educationMet = candEduLevel >= reqEduLevel;
 
   // === 2. Analisis Jurusan ===
   const candMajor = (candidate.educationMajor || '').toLowerCase();
-  const majorMet = job.preferredMajors.some(m => {
+  const preferredMajors = job.preferredMajors || [];
+  const majorMet = preferredMajors.some(m => {
+    if (!m) return false;
     const target = m.toLowerCase();
     return candMajor.includes(target) || target.includes(candMajor);
   });
 
   // === 3. Analisis Pengalaman ===
-  const candExpLevel = experienceLevels[candidate.experience] || 0;
-  const reqExpLevel = experienceLevels[job.preferredExperience] || 1;
+  const candExpLevel = experienceLevels[candidate.experience || ''] || 0;
+  const reqExpLevel = experienceLevels[job.preferredExperience || ''] || 1;
   const experienceMet = candExpLevel >= reqExpLevel;
 
   // === 4. Analisis Jabatan Terakhir ===
   const candLastPos = (candidate.lastPosition || '').toLowerCase();
-  const lastPositionMet = job.preferredLastPositions.some(p => {
+  const preferredLastPositions = job.preferredLastPositions || [];
+  const lastPositionMet = preferredLastPositions.some(p => {
+    if (!p) return false;
     const target = p.toLowerCase();
     return candLastPos.includes(target) || target.includes(candLastPos);
   });
@@ -145,14 +157,17 @@ export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined):
   // === 6. Analisis Skills (kata kunci eksak) ===
   const matchedSkills: string[] = [];
   const missingSkills: string[] = [];
-  job.skills.forEach(skill => {
+  const jobSkills = job.skills || [];
+  
+  jobSkills.forEach(skill => {
+    if (!skill) return;
     if (textContainsKeyword(candidateFullText, skill)) {
       matchedSkills.push(skill);
     } else {
       missingSkills.push(skill);
     }
   });
-  const skillScore = job.skills.length > 0 ? Math.round((matchedSkills.length / job.skills.length) * 100) : 50;
+  const skillScore = jobSkills.length > 0 ? Math.round((matchedSkills.length / jobSkills.length) * 100) : 50;
 
   // === 7. Analisis Tugas dan Tanggung Jawab ===
   const responsibilityResult = calculateTextMatch(candidateFullText, job.responsibilities);
@@ -168,8 +183,6 @@ export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined):
   const cvScore = candidate.cvData ? 100 : 0;
 
   // === 10. Total Score (weighted) ===
-  // Pendidikan: 10%, Jurusan: 10%, Pengalaman: 15%, Jabatan: 15%
-  // Skills: 25%, Tugas: 10%, Kualifikasi: 10%, CV: 5%
   const eduScore = educationMet ? 100 : Math.max(20, (candEduLevel / Math.max(reqEduLevel, 1)) * 60);
   const majorScore = majorMet ? 100 : 25;
   const expScore = experienceMet ? 100 : Math.max(15, (candExpLevel / Math.max(reqExpLevel, 1)) * 60);
@@ -210,21 +223,21 @@ export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined):
   const weaknessesArr: string[] = [];
 
   if (educationMet) strengthsArr.push(`Pendidikan ${candidate.education} memenuhi syarat ${job.preferredEducation}`);
-  else weaknessesArr.push(`Pendidikan ${candidate.education} di bawah syarat minimum ${job.preferredEducation}`);
+  else weaknessesArr.push(`Pendidikan ${candidate.education || 'tidak diisi'} di bawah syarat minimum ${job.preferredEducation}`);
 
   if (majorMet) strengthsArr.push(`Jurusan ${candidate.educationMajor} relevan dengan posisi`);
   else weaknessesArr.push(`Jurusan ${candidate.educationMajor || '-'} tidak termasuk dalam jurusan yang diutamakan`);
 
   if (experienceMet) strengthsArr.push(`Pengalaman ${candidate.experience} memenuhi standar`);
-  else weaknessesArr.push(`Pengalaman ${candidate.experience} kurang dari yang dibutuhkan (${job.preferredExperience})`);
+  else weaknessesArr.push(`Pengalaman ${candidate.experience || 'tidak diisi'} kurang dari yang dibutuhkan (${job.preferredExperience})`);
 
   if (lastPositionMet) strengthsArr.push(`Jabatan terakhir "${candidate.lastPosition}" sangat relevan`);
   else if (candidate.lastPosition && candidate.lastPosition !== '-') weaknessesArr.push(`Jabatan terakhir "${candidate.lastPosition}" kurang relevan dengan posisi`);
   else weaknessesArr.push('Belum memiliki pengalaman kerja sebelumnya');
 
-  if (skillScore >= 70) strengthsArr.push(`Menguasai ${matchedSkills.length}/${job.skills.length} skill teknis yang dibutuhkan`);
-  else if (skillScore >= 40) weaknessesArr.push(`Hanya menguasai ${matchedSkills.length}/${job.skills.length} skill teknis`);
-  else weaknessesArr.push(`Sangat kurang dalam skill teknis (${matchedSkills.length}/${job.skills.length})`);
+  if (skillScore >= 70) strengthsArr.push(`Menguasai ${matchedSkills.length}/${jobSkills.length} skill teknis yang dibutuhkan`);
+  else if (skillScore >= 40) weaknessesArr.push(`Hanya menguasai ${matchedSkills.length}/${jobSkills.length} skill teknis`);
+  else weaknessesArr.push(`Sangat kurang dalam skill teknis (${matchedSkills.length}/${jobSkills.length})`);
 
   if (cvScore === 0) weaknessesArr.push('Belum mengunggah dokumen CV');
 
@@ -233,14 +246,14 @@ export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined):
   let recommendation: string;
 
   if (totalScore >= 75) {
-    summary = `Kandidat ${candidate.name} menunjukkan kecocokan TINGGI dengan posisi ${job.title}. Latar belakang pendidikan ${candidate.education} jurusan ${candidate.educationMajor} sesuai dengan kualifikasi. Pengalaman ${candidate.experience} sebagai ${candidate.lastPosition} sangat relevan. Menguasai ${matchedSkills.length} dari ${job.skills.length} skill yang dibutuhkan (${skillScore}%) dan kemampuannya selaras dengan ${matchedResponsibilities.length}/${job.responsibilities.length} tanggung jawab utama posisi ini.`;
+    summary = `Kandidat ${candidate.name} menunjukkan kecocokan TINGGI dengan posisi ${job.title}. Latar belakang pendidikan ${candidate.education} jurusan ${candidate.educationMajor} sesuai dengan kualifikasi. Pengalaman ${candidate.experience} sebagai ${candidate.lastPosition} sangat relevan. Menguasai ${matchedSkills.length} dari ${jobSkills.length} skill yang dibutuhkan (${skillScore}%) dan kemampuannya selaras dengan ${matchedResponsibilities.length}/${(job.responsibilities || []).length} tanggung jawab utama posisi ini.`;
     recommendation = 'STRONGLY RECOMMENDED. Kandidat layak diproses cepat ke tahap wawancara teknis. Profil sangat sesuai dengan kebutuhan tim.';
   } else if (totalScore >= 50) {
-    summary = `Kandidat ${candidate.name} memiliki kecocokan SEDANG dengan posisi ${job.title}. ${educationMet ? '✓ Pendidikan' : '✗ Pendidikan'} ${candidate.education}/${candidate.educationMajor} ${majorMet ? 'relevan' : 'kurang relevan'}. Pengalaman ${candidate.experience} ${experienceMet ? 'memenuhi' : 'belum memenuhi'} standar. Skill yang dimiliki: ${matchedSkills.length}/${job.skills.length} (${skillScore}%). Beberapa aspek perlu didalami lebih lanjut.`;
+    summary = `Kandidat ${candidate.name} memiliki kecocokan SEDANG dengan posisi ${job.title}. ${educationMet ? '✓ Pendidikan' : '✗ Pendidikan'} ${candidate.education}/${candidate.educationMajor} ${majorMet ? 'relevan' : 'kurang relevan'}. Pengalaman ${candidate.experience} ${experienceMet ? 'memenuhi' : 'belum memenuhi'} standar. Skill yang dimiliki: ${matchedSkills.length}/${jobSkills.length} (${skillScore}%). Beberapa aspek perlu didalami lebih lanjut.`;
     recommendation = 'CONSIDER WITH CAUTION. Disarankan untuk wawancara screening awal guna mengevaluasi potensi pengembangan kandidat. Cocok jika dibutuhkan untuk posisi level lebih junior.';
   } else {
-    summary = `Kandidat ${candidate.name} menunjukkan kecocokan RENDAH dengan posisi ${job.title}. ${!educationMet ? `Pendidikan ${candidate.education} di bawah minimum (${job.preferredEducation}). ` : ''}${!majorMet ? `Jurusan ${candidate.educationMajor || '-'} tidak relevan. ` : ''}${!experienceMet ? `Pengalaman ${candidate.experience} kurang dari ${job.preferredExperience}. ` : ''}Hanya menguasai ${matchedSkills.length}/${job.skills.length} skill (${skillScore}%) dari yang dibutuhkan. Profil kandidat secara umum tidak sejalan dengan persyaratan kunci posisi.`;
-    recommendation = 'NOT RECOMMENDED. Kandidat kurang sesuai untuk posisi ini. Pertimbangkan untuk menawarkan posisi alternatif yang lebih sesuai dengan profil, atau program magang/training jika ada potensi.';
+    summary = `Kandidat ${candidate.name} menunjukkan kecocokan RENDAH dengan posisi ${job.title}. ${!educationMet ? `Pendidikan ${candidate.education} di bawah minimum (${job.preferredEducation}). ` : ''}${!majorMet ? `Jurusan ${candidate.educationMajor || '-'} tidak relevan. ` : ''}${!experienceMet ? `Pengalaman ${candidate.experience} kurang dari ${job.preferredExperience}. ` : ''}Hanya menguasai ${matchedSkills.length}/${jobSkills.length} skill (${skillScore}%) dari yang dibutuhkan. Profil kandidat secara umum tidak sejalan dengan persyaratan kunci posisi.`;
+    recommendation = 'NOT RECOMMENDED. Kandidat kurang sesuai untuk posisi ini. Pertimbangkan untuk menawarkan posisi alternatif yang lebih sesuai dengan profil.';
   }
 
   return {
@@ -252,25 +265,25 @@ export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined):
       met: educationMet,
       detail: educationMet ? 'Memenuhi persyaratan' : `Di bawah minimum (${job.preferredEducation})`,
       candLevel: candidate.education || '-',
-      reqLevel: job.preferredEducation,
+      reqLevel: job.preferredEducation || '-',
     },
     majorMatch: {
       met: majorMet,
       detail: majorMet ? 'Jurusan relevan' : 'Jurusan kurang relevan',
       candMajor: candidate.educationMajor || '-',
-      relevantMajors: job.preferredMajors,
+      relevantMajors: preferredMajors,
     },
     experienceMatch: {
       met: experienceMet,
       detail: experienceMet ? 'Memenuhi persyaratan' : 'Kurang dari yang dibutuhkan',
       candLevel: candidate.experience || '-',
-      reqLevel: job.preferredExperience,
+      reqLevel: job.preferredExperience || '-',
     },
     lastPositionMatch: {
       met: lastPositionMet,
       detail: lastPositionMet ? 'Jabatan sebelumnya relevan' : 'Jabatan sebelumnya kurang relevan',
       candPosition: candidate.lastPosition || '-',
-      relevantPositions: job.preferredLastPositions,
+      relevantPositions: preferredLastPositions,
     },
     workStatusMatch: {
       met: workStatusMet,
@@ -291,9 +304,9 @@ export function analyzeCandidateATS(candidate: Candidate, job: Job | undefined):
     weaknessesArr,
     contactInfo: {
       phone: candidate.phone || '-',
-      email: candidate.email,
+      email: candidate.email || '-',
       portfolio: candidate.portfolioLink || '-',
     },
-    appliedForJob: job.title,
+    appliedForJob: job.title || 'Unknown',
   };
 }
