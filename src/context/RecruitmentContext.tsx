@@ -1,6 +1,6 @@
-import { supabase, isSupabaseConnected } from '../config/supabase';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Candidate, Job, Interview, candidates as initialCandidates, jobs as initialJobs, interviews as initialInterviews, SLAConfig } from '../data/mockData';
+import { Candidate, Job, Interview, SLAConfig } from '../data/mockData';
+import { supabase, isSupabaseConnected } from '../config/supabase';
 
 const defaultSlaConfig: SLAConfig[] = [
   { stage: 'Screening',   slaDays: 5,  color: '#8b5cf6' },
@@ -143,24 +143,16 @@ interface RecruitmentContextType {
 const RecruitmentContext = createContext<RecruitmentContextType | undefined>(undefined);
 
 export function RecruitmentProvider({ children }: { children: ReactNode }) {
-  // Persist semua data utama ke localStorage agar tidak hilang saat refresh
-  const [candidates, setCandidates] = useState<Candidate[]>(() => {
-    const saved = localStorage.getItem('recruitflow_candidates');
-    return saved ? JSON.parse(saved) : initialCandidates;
-  });
-  const [jobs, setJobs] = useState<Job[]>(() => {
-    const saved = localStorage.getItem('recruitflow_jobs');
-    return saved ? JSON.parse(saved) : initialJobs;
-  });
-  const [interviews, setInterviews] = useState<Interview[]>(() => {
-    const saved = localStorage.getItem('recruitflow_interviews');
-    return saved ? JSON.parse(saved) : initialInterviews;
-  });
+  // 3.2: Ubah inisialisasi state menjadi kosong []
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
 
-  // Sync data utama ke localStorage setiap kali berubah
+  // Tetap sinkronkan ke localStorage sebagai cadangan lokal (opsional)
   useEffect(() => { localStorage.setItem('recruitflow_candidates', JSON.stringify(candidates)); }, [candidates]);
   useEffect(() => { localStorage.setItem('recruitflow_jobs', JSON.stringify(jobs)); }, [jobs]);
   useEffect(() => { localStorage.setItem('recruitflow_interviews', JSON.stringify(interviews)); }, [interviews]);
+  
   // Persist login session across page refresh using sessionStorage
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     const saved = sessionStorage.getItem('recruitflow_isAdmin');
@@ -193,6 +185,44 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     setSlaConfigState(newConfig);
     localStorage.setItem('recruitflow_slaConfig', JSON.stringify(newConfig));
   };
+
+  // 3.3: Tambahkan Fungsi Fetch Data Awal & Real-Time Listener Supabase
+  const fetchInitialData = async () => {
+    if (!isSupabaseConnected) return;
+
+    // Fetch Candidates
+    const { data: candidatesData, error: candidatesError } = await supabase.from('candidates').select('*');
+    if (candidatesError) console.error('Error fetching candidates:', candidatesError);
+    else if (candidatesData) setCandidates(candidatesData as any);
+
+    // Fetch Jobs
+    const { data: jobsData, error: jobsError } = await supabase.from('jobs').select('*');
+    if (jobsError) console.error('Error fetching jobs:', jobsError);
+    else if (jobsData) setJobs(jobsData as any);
+
+    // Fetch Interviews
+    const { data: interviewsData, error: interviewsError } = await supabase.from('interviews').select('*');
+    if (interviewsError) console.error('Error fetching interviews:', interviewsError);
+    else if (interviewsData) setInterviews(interviewsData as any);
+  };
+
+  // Dengarkan perubahan di database secara real-time
+  useEffect(() => {
+    if (!isSupabaseConnected) return;
+
+    fetchInitialData();
+
+    const channel = supabase
+      .channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, fetchInitialData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, fetchInitialData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'interviews' }, fetchInitialData)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const [systemSettings, setSystemSettingsState] = useState<SystemSettings>(() => {
     const saved = localStorage.getItem('recruitflow_systemSettings');
@@ -238,101 +268,196 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem('recruitflow_activeTab');
   };
 
-  // Candidates
-  const addCandidate = (candidate: Omit<Candidate, 'id'>) => {
-    const newId = candidates.length > 0 ? Math.max(...candidates.map(c => c.id)) + 1 : 1;
-    setCandidates([...candidates, { ...candidate, id: newId }]);
-    
-    // Add notification when a new candidate applies or is added
-    addNotification({
-      title: 'Kandidat Baru',
-      message: `${candidate.name} mendaftar untuk posisi ${candidate.position}`,
-      time: 'Baru saja',
-      type: 'candidate'
-    });
-  };
+  // ==========================================
+  // ✍️ INTEGRASI CRUD SUPABASE DENGAN REALTIME (DAN FALLBACK LOKAL)
+  // ==========================================
 
-  const updateCandidate = (id: number, updatedFields: Partial<Candidate>) => {
-    setCandidates(candidates.map(c => c.id === id ? { ...c, ...updatedFields } : c));
-  };
-
-  const deleteCandidate = (id: number) => {
-    setCandidates(candidates.filter(c => c.id !== id));
-  };
-
-  // Jobs
-  const addJob = (job: Omit<Job, 'id'>) => {
-    const newId = jobs.length > 0 ? Math.max(...jobs.map(j => j.id)) + 1 : 1;
-    setJobs([...jobs, { ...job, id: newId }]);
-  };
-
-  const updateJob = (id: number, updatedFields: Partial<Job>) => {
-    setJobs(jobs.map(j => j.id === id ? { ...j, ...updatedFields } : j));
-  };
-
-  const deleteJob = (id: number) => {
-    setJobs(jobs.filter(j => j.id !== id));
-  };
-
-  // Interviews
-  const addInterview = (interview: Omit<Interview, 'id'>) => {
-    const newId = interviews.length > 0 ? Math.max(...interviews.map(i => i.id)) + 1 : 1;
-    setInterviews([...interviews, { ...interview, id: newId }]);
-
-    addNotification({
-      title: 'Wawancara Baru Dijadwalkan',
-      message: `Wawancara ${interview.type} dengan ${interview.candidateName} pada ${interview.date}`,
-      time: 'Baru saja',
-      type: 'interview'
-    });
-  };
-
-  const updateInterview = (id: number, updatedFields: Partial<Interview>) => {
-    setInterviews(interviews.map(i => i.id === id ? { ...i, ...updatedFields } : i));
-  };
-
-  const deleteInterview = (id: number) => {
-    setInterviews(interviews.filter(i => i.id !== id));
-  };
-
-  // Admin Accounts CRUD
-  const addAdminAccount = (account: Omit<AdminAccount, 'id'>) => {
-    const newId = adminAccounts.length > 0 ? Math.max(...adminAccounts.map(a => a.id)) + 1 : 1;
-    setAdminAccounts([...adminAccounts, { ...account, id: newId }]);
-  };
-
-  const updateAdminAccount = (id: number, updatedFields: Partial<AdminAccount>) => {
-    setAdminAccounts(adminAccounts.map(a => a.id === id ? { ...a, ...updatedFields } : a));
-  };
-
-  const deleteAdminAccount = (id: number) => {
-    setAdminAccounts(adminAccounts.filter(a => a.id !== id));
-  };
-
-  // Portal Links CRUD
-  const addPortalLink = (portalLink: Omit<PortalLinkInfo, 'id' | 'isActive'>) => {
-    const newId = portalLinks.length > 0 ? Math.max(...portalLinks.map(p => p.id)) + 1 : 1;
-    const isFirst = portalLinks.length === 0;
-    setPortalLinks([...portalLinks, { ...portalLink, id: newId, isActive: isFirst }]);
-  };
-
-  const updatePortalLink = (id: number, updatedFields: Partial<PortalLinkInfo>) => {
-    setPortalLinks(portalLinks.map(p => p.id === id ? { ...p, ...updatedFields } : p));
-  };
-
-  const deletePortalLink = (id: number) => {
-    const filtered = portalLinks.filter(p => p.id !== id);
-    if (filtered.length > 0 && !filtered.some(p => p.isActive)) {
-      filtered[0].isActive = true;
+  // Helper untuk menambah notifikasi
+  const triggerNotification = async (title: string, message: string, type: 'candidate' | 'interview' | 'system') => {
+    const newId = Date.now();
+    const notifItem: AppNotification = { id: newId, title, message, time: 'Baru saja', read: false, type };
+    if (isSupabaseConnected) {
+      await supabase.from('notifications').insert([notifItem]);
+    } else {
+      setNotifications(prev => [notifItem, ...prev]);
     }
-    setPortalLinks(filtered);
   };
 
-  const setActivePortalLink = (id: number) => {
-    setPortalLinks(portalLinks.map(p => ({
-      ...p,
-      isActive: p.id === id
-    })));
+  // CANDIDATES CRUD
+  const addCandidate = async (candidateData: Omit<Candidate, 'id'>) => {
+    const newId = Date.now();
+    const newCandidate: Candidate = { ...candidateData, id: newId };
+    
+    if (isSupabaseConnected) {
+      const { error } = await supabase.from('candidates').insert([newCandidate]);
+      if (error) console.error("Gagal insert kandidat:", error);
+    } else {
+      setCandidates(prev => [newCandidate, ...prev]);
+    }
+    await triggerNotification('Lamaran Baru Masuk!', `${newCandidate.name} telah melamar posisi ${newCandidate.position}`, 'candidate');
+  };
+
+  const updateCandidate = async (id: number, updatedFields: Partial<Candidate>) => {
+    if (isSupabaseConnected) {
+      await supabase.from('candidates').update(updatedFields).eq('id', id);
+    } else {
+      setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
+    }
+  };
+
+  const deleteCandidate = async (id: number) => {
+    if (isSupabaseConnected) {
+      await supabase.from('candidates').delete().eq('id', id);
+    } else {
+      setCandidates(prev => prev.filter(c => c.id !== id));
+    }
+  };
+
+  // JOBS CRUD
+  const addJob = async (jobData: Omit<Job, 'id'>) => {
+    const newId = Date.now();
+    const newJob: Job = { ...jobData, id: newId };
+    if (isSupabaseConnected) {
+      await supabase.from('jobs').insert([newJob]);
+    } else {
+      setJobs(prev => [...prev, newJob]);
+    }
+  };
+
+  const updateJob = async (id: number, updatedFields: Partial<Job>) => {
+    if (isSupabaseConnected) {
+      await supabase.from('jobs').update(updatedFields).eq('id', id);
+    } else {
+      setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updatedFields } : j));
+    }
+  };
+
+  const deleteJob = async (id: number) => {
+    if (isSupabaseConnected) {
+      await supabase.from('jobs').delete().eq('id', id);
+    } else {
+      setJobs(prev => prev.filter(j => j.id !== id));
+    }
+  };
+
+  // INTERVIEWS CRUD
+  const addInterview = async (interviewData: Omit<Interview, 'id'>) => {
+    const newId = Date.now();
+    const newInterview: Interview = { ...interviewData, id: newId };
+    if (isSupabaseConnected) {
+      await supabase.from('interviews').insert([newInterview]);
+    } else {
+      setInterviews(prev => [newInterview, ...prev]);
+    }
+    await triggerNotification('Jadwal Wawancara', `Wawancara dengan ${newInterview.candidateName} dijadwalkan pada ${newInterview.date}`, 'interview');
+  };
+
+  const updateInterview = async (id: number, updatedFields: Partial<Interview>) => {
+    if (isSupabaseConnected) {
+      await supabase.from('interviews').update(updatedFields).eq('id', id);
+    } else {
+      setInterviews(prev => prev.map(i => i.id === id ? { ...i, ...updatedFields } : i));
+    }
+  };
+
+  const deleteInterview = async (id: number) => {
+    if (isSupabaseConnected) {
+      await supabase.from('interviews').delete().eq('id', id);
+    } else {
+      setInterviews(prev => prev.filter(i => i.id !== id));
+    }
+  };
+
+  // ADMIN ACCOUNTS CRUD
+  const addAdminAccount = async (account: Omit<AdminAccount, 'id'>) => {
+    const newId = Date.now();
+    if (isSupabaseConnected) {
+      await supabase.from('admin_accounts').insert([{ ...account, id: newId }]);
+    } else {
+      setAdminAccounts(prev => [...prev, { ...account, id: newId }]);
+    }
+  };
+
+  const updateAdminAccount = async (id: number, updatedFields: Partial<AdminAccount>) => {
+    if (isSupabaseConnected) {
+      await supabase.from('admin_accounts').update(updatedFields).eq('id', id);
+    } else {
+      setAdminAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updatedFields } : a));
+    }
+  };
+
+  const deleteAdminAccount = async (id: number) => {
+    if (isSupabaseConnected) {
+      await supabase.from('admin_accounts').delete().eq('id', id);
+    } else {
+      setAdminAccounts(prev => prev.filter(a => a.id !== id));
+    }
+  };
+
+  // PORTAL LINKS CRUD
+  const addPortalLink = async (portalLink: Omit<PortalLinkInfo, 'id' | 'isActive'>) => {
+    const newId = Date.now();
+    const isFirst = portalLinks.length === 0;
+    const newLink = { ...portalLink, id: newId, isActive: isFirst };
+    if (isSupabaseConnected) {
+      await supabase.from('portal_links').insert([newLink]);
+    } else {
+      setPortalLinks(prev => [...prev, newLink]);
+    }
+  };
+
+  const updatePortalLink = async (id: number, updatedFields: Partial<PortalLinkInfo>) => {
+    if (isSupabaseConnected) {
+      await supabase.from('portal_links').update(updatedFields).eq('id', id);
+    } else {
+      setPortalLinks(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+    }
+  };
+
+  const deletePortalLink = async (id: number) => {
+    if (isSupabaseConnected) {
+      await supabase.from('portal_links').delete().eq('id', id);
+    } else {
+      const filtered = portalLinks.filter(p => p.id !== id);
+      if (filtered.length > 0 && !filtered.some(p => p.isActive)) filtered[0].isActive = true;
+      setPortalLinks(filtered);
+    }
+  };
+
+  const setActivePortalLink = async (id: number) => {
+    if (isSupabaseConnected) {
+      await supabase.from('portal_links').update({ isActive: false }).neq('id', id);
+      await supabase.from('portal_links').update({ isActive: true }).eq('id', id);
+    } else {
+      setPortalLinks(prev => prev.map(p => ({ ...p, isActive: p.id === id })));
+    }
+  };
+
+  // NOTIFICATIONS
+  const markNotificationAsRead = async (id: number) => {
+    if (isSupabaseConnected) {
+      await supabase.from('notifications').update({ read: true }).eq('id', id);
+    } else {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    if (isSupabaseConnected) {
+      await supabase.from('notifications').update({ read: true }).eq('read', false);
+    } else {
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    }
+  };
+
+  const addNotification = async (notification: Omit<AppNotification, 'id' | 'read'>) => {
+    const newId = Date.now();
+    const notifItem: AppNotification = { ...notification, id: newId, read: false };
+    if (isSupabaseConnected) {
+      await supabase.from('notifications').insert([notifItem]);
+    } else {
+      setNotifications(prev => [notifItem, ...prev]);
+    }
   };
 
   // Utility: hitung jumlah pelamar berdasarkan data kandidat aktual
@@ -342,20 +467,6 @@ export function RecruitmentProvider({ children }: { children: ReactNode }) {
       c.position.toLowerCase().includes(jobTitle.toLowerCase()) ||
       jobTitle.toLowerCase().includes(c.position.toLowerCase())
     ).length;
-  };
-
-  // Notifications
-  const markNotificationAsRead = (id: number) => {
-    setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
-  };
-
-  const markAllNotificationsAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })));
-  };
-
-  const addNotification = (notification: Omit<AppNotification, 'id' | 'read'>) => {
-    const newId = notifications.length > 0 ? Math.max(...notifications.map(n => n.id)) + 1 : 1;
-    setNotifications([{ ...notification, id: newId, read: false }, ...notifications]);
   };
 
   return (
