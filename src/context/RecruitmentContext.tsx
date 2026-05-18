@@ -1,3 +1,4 @@
+import { supabase, isSupabaseConnected } from '../config/supabase';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Candidate, Job, Interview, candidates as initialCandidates, jobs as initialJobs, interviews as initialInterviews, SLAConfig } from '../data/mockData';
 
