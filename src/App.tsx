@@ -9,7 +9,7 @@ import { SettingsTab } from './components/SettingsTab';
 import { AdminAccounts } from './components/AdminAccounts';
 
 export function App() {
-  const { currentAdmin, login, logout, adminAccounts, candidates, jobs, interviews } = useRecruitment();
+  const { currentAdmin, login, logout, candidates, jobs, interviews } = useRecruitment();
   
   // Set halaman awal default ke 'portal-links' (Portal Lowongan Kerja Publik)
   const [activeTab, setActiveTab] = useState<string>('portal-links');
@@ -19,7 +19,7 @@ export function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // SINKRONISASI OTOMATIS: Jika sukses login, langsung lempar admin ke halaman dashboard internal
+  // SINKRONISASI OTOMATIS: Jika sukses login, langsung alihkan admin ke halaman dashboard internal
   useEffect(() => {
     if (currentAdmin) {
       setActiveTab('dashboard');
@@ -40,30 +40,28 @@ export function App() {
     }
   };
 
-  // Cek apakah halaman saat ini merupakan mode Publik (Tamu)
-  const isPublicPage = activeTab === 'portal-links' || activeTab === 'login';
+  // KONDISI BARU: Kolom Sidebar Kiri hanya benar-benar disembunyikan JIKA tidak ada admin yang login
+  const showSidebar = !!currentAdmin;
 
   return (
     <div className="flex bg-slate-50 min-h-screen w-full overflow-x-hidden font-sans">
       
-      {/* 1. SIDEBAR KIRI: Hanya ditampilkan JIKA admin sudah login DAN tidak sedang membuka halaman publik */}
-      {!isPublicPage && currentAdmin && (
+      {/* 1. SIDEBAR NAVIGASI INTERNAL (Hanya tampil jika sudah login) */}
+      {showSidebar && (
         <Sidebar 
           activeTab={activeTab} 
           onTabChange={(tabId) => setActiveTab(tabId)} 
         />
       )}
 
-      {/* 2. AREA KONTEN UTAMA DENGAN DYNAMIC PADDING */}
-      <main className={`flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto w-full transition-all duration-300 ${isPublicPage ? 'max-w-6xl mx-auto' : 'max-w-7xl mx-auto'}`}>
+      {/* 2. AREA KONTEN UTAMA DENGAN ADJUSTMENT MARGIN JIKA SIDEBAR TERSEDIA */}
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto w-full max-w-7xl mx-auto">
         
-        {/* =========================================================================
-           HEADER ATAS BARU: Fitur Navigasi Publik & Tombol Login Pojok Kanan Atas
-           ========================================================================= */}
+        {/* HEADER ATAS PANEL */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6 text-left">
           <div>
             <div className="flex items-center gap-2">
-              {isPublicPage && (
+              {!currentAdmin && (
                 <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center font-black text-white text-sm mr-1">T</div>
               )}
               <h1 className="text-2xl font-black text-slate-800 tracking-tight capitalize">
@@ -71,15 +69,15 @@ export function App() {
               </h1>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isPublicPage ? 'TalentHub Portal Karir Publik' : 'Sistem Dashboard Internal HRIS'}
+              {!currentAdmin ? 'TalentHub Portal Karir Publik' : 'Sistem Dashboard Internal HRIS'}
             </p>
           </div>
 
-          {/* SISI KANAN HEADER: Navigasi Login / Logout Dinamis */}
+          {/* SISI KANAN HEADER: Opsi Login / Info Akses Sesi */}
           <div className="flex items-center gap-3">
-            {isPublicPage ? (
+            {!currentAdmin ? (
               activeTab === 'portal-links' ? (
-                // JIKA DI PORTAL LOWONGAN: Tampilkan Tombol Login ber-Ikon di Kanan Atas
+                // JIKA BELUM LOGIN: Tampilkan tombol Login ber-Ikon di Kanan Atas
                 <button
                   onClick={() => setActiveTab('login')}
                   className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:text-slate-900 font-bold rounded-xl text-xs border border-slate-200 hover:border-slate-300 shadow-sm transition-all"
@@ -88,7 +86,6 @@ export function App() {
                   <span>Login</span>
                 </button>
               ) : (
-                // JIKA DI HALAMAN FORM LOGIN: Tampilkan tombol kembali ke Portal Lowongan
                 <button
                   onClick={() => setActiveTab('portal-links')}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
@@ -97,38 +94,40 @@ export function App() {
                 </button>
               )
             ) : (
-              // JIKA DI LAYOUT ADMIN INTERNAL: Tampilkan Status Sesi & Tombol Quick Logout
+              // JIKA SUDAH LOGIN: Tampilkan Status Role Sesi Aktif
               <div className="flex items-center gap-3">
-                <span className="hidden sm:inline-block text-xs font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wider">
-                  Akses: {currentAdmin?.role}
+                <span className="text-xs font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wider">
+                  Akses: {currentAdmin.role}
                 </span>
-                <button
-                  onClick={() => {
-                    if (logout) logout();
-                    setActiveTab('portal-links');
-                  }}
-                  className="sm:hidden flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold"
-                  title="Logout"
-                >
-                  <LogOut size={14} />
-                </button>
+                
+                {/* Tombol Logout Tambahan Khusus saat Admin sengaja membuka Tab Portal */}
+                {activeTab === 'portal-links' && (
+                  <button
+                    onClick={() => {
+                      if (logout) logout();
+                      setActiveTab('portal-links');
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold border border-red-100 hover:bg-red-100 transition-colors"
+                  >
+                    <LogOut size={13} />
+                    <span>Keluar</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
 
-        {/* =========================================================================
-           MECHANISM ROUTING RENDER KONTEN
-           ========================================================================= */}
+        {/* ROUTING VIEW KONTEN */}
         {(() => {
           switch (activeTab) {
             case 'login':
               return (
-                <div className="min-h-[60vh] flex items-center justify-center py-6 px-4 font-sans text-left">
+                <div className="min-h-[55vh] flex items-center justify-center py-6 px-4 font-sans text-left">
                   <div className="w-full max-w-md bg-white rounded-2xl shadow-md border border-slate-200 p-8">
                     <div className="text-center mb-6">
                       <h2 className="text-xl font-bold text-slate-800">Masuk Panel Admin</h2>
-                      <p className="text-xs text-slate-500 mt-1">Masukkan kredensial HRIS Anda untuk masuk ke sistem.</p>
+                      {/* FIX: Kalimat instruksi HRIS lama telah dihapus bersih di sini */}
                     </div>
 
                     {loginError && (
@@ -169,12 +168,7 @@ export function App() {
                         Masuk Sekarang
                       </button>
                     </form>
-
-                    {adminAccounts && adminAccounts.length > 0 && (
-                      <div className="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400 text-center">
-                        Akun Demo: <strong className="text-slate-600">{adminAccounts[0].username}</strong> (password: <strong className="text-slate-600">{adminAccounts[0].password}</strong>)
-                      </div>
-                    )}
+                    {/* FIX: Teks Info Akun Demo Pembantu lama telah dihapus total */}
                   </div>
                 </div>
               );
