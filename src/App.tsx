@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRecruitment } from './context/RecruitmentContext';
-import { LogIn, LogOut } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 
 // Import komponen-komponen utama dashboard
 import { Sidebar } from './components/Sidebar';
@@ -9,7 +9,7 @@ import { SettingsTab } from './components/SettingsTab';
 import { AdminAccounts } from './components/AdminAccounts';
 
 export function App() {
-  const { currentAdmin, login, logout, candidates, jobs, interviews } = useRecruitment();
+  const { currentAdmin, login, adminAccounts, candidates, jobs, interviews } = useRecruitment();
   
   // Set halaman awal default ke 'portal-links' (Portal Lowongan Kerja Publik)
   const [activeTab, setActiveTab] = useState<string>('portal-links');
@@ -19,7 +19,7 @@ export function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // SINKRONISASI OTOMATIS: Jika sukses login, langsung alihkan admin ke halaman dashboard internal
+  // SINKRONISASI OTOMATIS: Hanya mengalihkan ke dashboard saat PERTAMA KALI sukses login
   useEffect(() => {
     if (currentAdmin) {
       setActiveTab('dashboard');
@@ -40,13 +40,13 @@ export function App() {
     }
   };
 
-  // KONDISI BARU: Kolom Sidebar Kiri hanya benar-benar disembunyikan JIKA tidak ada admin yang login
+  // Sidebar Kiri akan selalu mengunci dan tampil menemani admin JIKA sesi admin terdeteksi aktif
   const showSidebar = !!currentAdmin;
 
   return (
     <div className="flex bg-slate-50 min-h-screen w-full overflow-x-hidden font-sans">
       
-      {/* 1. SIDEBAR NAVIGASI INTERNAL (Hanya tampil jika sudah login) */}
+      {/* 1. SIDEBAR NAVIGASI INTERNAL (Tetap mengunci di kiri selama admin login) */}
       {showSidebar && (
         <Sidebar 
           activeTab={activeTab} 
@@ -54,7 +54,7 @@ export function App() {
         />
       )}
 
-      {/* 2. AREA KONTEN UTAMA DENGAN ADJUSTMENT MARGIN JIKA SIDEBAR TERSEDIA */}
+      {/* 2. AREA KONTEN UTAMA */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto w-full max-w-7xl mx-auto">
         
         {/* HEADER ATAS PANEL */}
@@ -73,7 +73,7 @@ export function App() {
             </p>
           </div>
 
-          {/* SISI KANAN HEADER: Opsi Login / Info Akses Sesi */}
+          {/* SISI KANAN HEADER: Navigasi Login Bersih Tanpa Redundansi Logout */}
           <div className="flex items-center gap-3">
             {!currentAdmin ? (
               activeTab === 'portal-links' ? (
@@ -94,25 +94,12 @@ export function App() {
                 </button>
               )
             ) : (
-              // JIKA SUDAH LOGIN: Tampilkan Status Role Sesi Aktif
+              // JIKA SUDAH LOGIN: Hanya menampilkan badge Hak Akses Role Admin (Bersih & Elegan)
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wider">
                   Akses: {currentAdmin.role}
                 </span>
-                
-                {/* Tombol Logout Tambahan Khusus saat Admin sengaja membuka Tab Portal */}
-                {activeTab === 'portal-links' && (
-                  <button
-                    onClick={() => {
-                      if (logout) logout();
-                      setActiveTab('portal-links');
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold border border-red-100 hover:bg-red-100 transition-colors"
-                  >
-                    <LogOut size={13} />
-                    <span>Keluar</span>
-                  </button>
-                )}
+                {/* FIX: Fitur logout/keluar duplikat di bagian kanan atas telah dihapus sepenuhnya */}
               </div>
             )}
           </div>
@@ -127,7 +114,6 @@ export function App() {
                   <div className="w-full max-w-md bg-white rounded-2xl shadow-md border border-slate-200 p-8">
                     <div className="text-center mb-6">
                       <h2 className="text-xl font-bold text-slate-800">Masuk Panel Admin</h2>
-                      {/* FIX: Kalimat instruksi HRIS lama telah dihapus bersih di sini */}
                     </div>
 
                     {loginError && (
@@ -168,7 +154,6 @@ export function App() {
                         Masuk Sekarang
                       </button>
                     </form>
-                    {/* FIX: Teks Info Akun Demo Pembantu lama telah dihapus total */}
                   </div>
                 </div>
               );
