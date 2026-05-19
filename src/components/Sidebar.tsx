@@ -13,7 +13,6 @@ import {
 import { useState } from 'react';
 import { useRecruitment } from '../context/RecruitmentContext';
 
-// Struktur daftar menu navigasi admin lengkap
 const adminItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'candidates', label: 'Kandidat', icon: Users },
@@ -27,32 +26,15 @@ const adminItems = [
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
-  onCustomLogout: () => void;
-  isManualLoggedOut: boolean;
 }
 
-export function Sidebar({ activeTab, onTabChange, onCustomLogout, isManualLoggedOut }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  
-  // Ambil fungsi logout bawaan dari context global
   const { currentAdmin, logout } = useRecruitment();
-
-  // BYPASS NAVIGASI: Selama user tidak menekan logout secara sengaja, tampilkan menu admin penuh
-  const memilikiAksesAdmin = !isManualLoggedOut;
-
-  const handleActionLogout = () => {
-    // 1. Amankan state di App.tsx terlebih dahulu untuk mengunci auto-login
-    onCustomLogout();
-    
-    // 2. Bersihkan session admin di global context
-    if (logout) {
-      logout();
-    }
-  };
 
   return (
     <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 sticky top-0 h-screen shrink-0 z-40 text-left`}>
-      {/* Bagian Atas: Logo Aplikasi */}
+      {/* Bagian Atas: Logo */}
       <div className="p-6 flex items-center justify-between border-b border-slate-700/50">
         {!collapsed && (
           <div className="flex items-center gap-2">
@@ -68,65 +50,51 @@ export function Sidebar({ activeTab, onTabChange, onCustomLogout, isManualLogged
         </button>
       </div>
 
-      {/* Bagian Tengah: Menu Navigasi Dinamis */}
+      {/* Bagian Tengah: Menu */}
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-        {memilikiAksesAdmin ? (
-          // Jika dalam sesi admin aktif, render list menu operasional lengkap
-          adminItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id || (item.id === 'settings' && activeTab === 'sla-settings');
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => onTabChange(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all group ${
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
-                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
-                }`}
-              >
-                <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'} />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-              </button>
-            );
-          })
-        ) : (
-          // JIKA LOGOUT BERHASIL: Tampilkan menu fallback publik aman agar sistem tidak crash
-          <div className="p-4 bg-slate-800/40 border border-slate-700/40 rounded-xl text-center text-xs text-slate-400">
-            Sesi Admin Telah Berakhir
-          </div>
-        )}
+        {adminItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id || (item.id === 'settings' && activeTab === 'sla-settings');
+          
+          return (
+            <button
+              key={item.id}
+              onClick={() => onTabChange(item.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all group ${
+                isActive
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
+              }`}
+            >
+              <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'} />
+              {!collapsed && <span className="truncate">{item.label}</span>}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* Bagian Bawah: Informasi Profil Akun */}
+      {/* Bagian Bawah: Profil Akun */}
       <div className="p-4 border-t border-slate-700/50 bg-slate-950/20">
-        {memilikiAksesAdmin ? (
-          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
-              {currentAdmin?.username?.charAt(0).toUpperCase() || 'S'}
+        <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
+            {currentAdmin?.username?.charAt(0).toUpperCase() || 'A'}
+          </div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-bold text-sm truncate text-slate-100">{currentAdmin?.username || 'admin'}</p>
+              <p className="text-xs text-indigo-400 font-semibold truncate uppercase tracking-wider">{currentAdmin?.role || 'ADMIN'}</p>
             </div>
-            {!collapsed && (
-              <div className="flex-1 min-w-0 text-left">
-                <p className="font-bold text-sm truncate text-slate-100">{currentAdmin?.username || 'superadmin'}</p>
-                <p className="text-xs text-indigo-400 font-semibold truncate uppercase tracking-wider">{currentAdmin?.role || 'SUPER ADMIN'}</p>
-              </div>
-            )}
-            {!collapsed && (
-              <button 
-                onClick={handleActionLogout}
-                className="text-slate-400 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
-                title="Keluar Aplikasi"
-              >
-                <LogOut size={16} />
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="text-xs text-center text-slate-500 font-medium">
-            {!collapsed && <p>Mode Sesi Terbatas</p>}
-          </div>
-        )}
+          )}
+          {!collapsed && (
+            <button 
+              onClick={() => logout && logout()}
+              className="text-slate-400 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
+              title="Keluar Aplikasi"
+            >
+              <LogOut size={16} />
+            </button>
+          )}
+        </div>
       </div>
     </aside>
   );
