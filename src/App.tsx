@@ -11,34 +11,30 @@ export function App() {
   // State navigasi aktif, diatur default ke 'dashboard' halaman utama
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   
-  // Flag pengaman penting agar auto-login tidak langsung menyambar saat user sengaja klik Logout
-  const [userLoggedOut, setUserLoggedOut] = useState<boolean>(false);
+  // Flag krusial untuk mengunci auto-login agar tidak menembak kembali setelah tombol logout diklik
+  const [isManualLoggedOut, setIsManualLoggedOut] = useState<boolean>(false);
   
-  // Ambil state operasional dari context global
+  // Ambil data dan fungsi operasional dari context global
   const { currentAdmin, login, adminAccounts, candidates, jobs, interviews } = useRecruitment();
 
   // =========================================================================
-  // 1. AUTO-LOGIN SIMULATION (ANTI-LOOP FILTER)
+  // SIMULASI AUTO-LOGIN ANTI LOOPING
   // =========================================================================
   useEffect(() => {
-    // Hanya lakukan simulasi masuk jika sesi kosong DAN user tidak sedang menekan logout
-    if (!currentAdmin && !userLoggedOut) {
+    // Hanya lakukan login otomatis jika tidak ada admin yang login DAN user tidak sedang logout manual
+    if (!currentAdmin && !isManualLoggedOut) {
       if (adminAccounts && adminAccounts.length > 0) {
         const defaultAdmin = adminAccounts[0];
+        // Jalankan fungsi login bawaan context
         login?.(defaultAdmin.username, defaultAdmin.password);
       }
     }
-  }, [currentAdmin, adminAccounts, login, userLoggedOut]);
+  }, [currentAdmin, adminAccounts, login, isManualLoggedOut]);
 
-  // Handler kustom penanganan jabat tangan proses logout secara aman
+  // Handler kustom untuk mengamankan proses logout
   const handleSystemLogout = () => {
-    setUserLoggedOut(true); // Kunci pintu auto-login
+    setIsManualLoggedOut(true); // Kunci pintu auto-login agar tidak aktif lagi
     setActiveTab('dashboard');
-    
-    // Berikan jeda waktu luang bagi aplikasi untuk membersihkan memori sebelum melepas bypass
-    setTimeout(() => {
-      setUserLoggedOut(false);
-    }, 1500);
   };
 
   // FUNGSI NAVIGASI INTERN: Mengontrol komponen yang aktif di layar
@@ -47,11 +43,13 @@ export function App() {
       case 'dashboard':
         return (
           <div className="space-y-6">
-            {/* FIX TOTAL DATA 0: Menggunakan panjang gabungan array data sebagai KEY pemicu.
-              Jika jumlah data berubah dari 0 menjadi terisi, React dipaksa merelasasi komponen 
-              dan angka riil di StatsCards dipastikan langsung muncul seketika!
+            {/* SOLUSI MUTLAK DATA 0: Menggunakan string panjang data sebagai KEY unik.
+              Saat data masuk dari context (misal dari 0 menjadi 5), Key komponen akan berubah,
+              memaksa React menghancurkan StatsCards lama dan merender ulang dengan data asli yang baru!
             */}
-            <StatsCards key={`${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
+            <StatsCards 
+              key={`stats-${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} 
+            />
             
             {/* Banner Selamat Datang */}
             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
@@ -95,11 +93,12 @@ export function App() {
 
   return (
     <div className="flex bg-slate-50 min-h-screen w-full overflow-x-hidden font-sans">
-      {/* 1. Komponen Navigasi Kiri (Sidebar) dengan operan pipa penanganan logout baru */}
+      {/* 1. Komponen Navigasi Kiri (Sidebar) */}
       <Sidebar 
         activeTab={activeTab} 
         onTabChange={(tabId) => setActiveTab(tabId)} 
         onCustomLogout={handleSystemLogout}
+        isManualLoggedOut={isManualLoggedOut}
       />
 
       {/* 2. Area Konten Dinamis */}
