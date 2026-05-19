@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRecruitment } from './context/RecruitmentContext';
 
 // Import komponen-komponen utama dashboard
@@ -11,8 +11,21 @@ export function App() {
   // State navigasi aktif, diatur default ke 'dashboard' halaman utama
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   
-  // Ambil profil admin yang sedang login untuk keperluan sapaan header
-  const { currentAdmin } = useRecruitment();
+  // Ambil state dan fungsi manipulasi dari context global
+  const { currentAdmin, login, adminAccounts } = useRecruitment();
+
+  // =========================================================================
+  // AUTO-LOGIN SIMULATION: Memaksa sistem terisi akun jika mendeteksi sesi kosong
+  // =========================================================================
+  useEffect(() => {
+    if (!currentAdmin) {
+      if (adminAccounts && adminAccounts.length > 0) {
+        // Ambil akun pertama dari mock data untuk mensimulasikan login admin
+        const defaultAdmin = adminAccounts[0];
+        login?.(defaultAdmin.username, defaultAdmin.password);
+      }
+    }
+  }, [currentAdmin, adminAccounts, login]);
 
   // FUNGSI NAVIGASI INTERN: Mengontrol komponen yang aktif di layar
   const renderMainContent = () => {
@@ -20,12 +33,14 @@ export function App() {
       case 'dashboard':
         return (
           <div className="space-y-6">
-            {/* Kartu Ringkasan KPI Utama yang sudah adaptif terhadap filter waktu */}
+            {/* Kartu Ringkasan KPI Utama */}
             <StatsCards />
             
             {/* Banner Selamat Datang */}
             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
-              <h3 className="font-bold text-slate-800 text-base">Selamat Datang Kembali, {currentAdmin?.username || 'User'}!</h3>
+              <h3 className="font-bold text-slate-800 text-base">
+                Selamat Datang Kembali, {currentAdmin?.username || 'Super Admin'}!
+              </h3>
               <p className="text-xs text-slate-500 mt-1">Gunakan panel navigasi di sebelah kiri untuk mengelola operasional rekrutmen TalentHub.</p>
             </div>
           </div>
@@ -44,24 +59,14 @@ export function App() {
         return <div className="p-8 bg-white rounded-2xl text-left text-sm text-slate-500 font-medium border border-slate-100 shadow-sm">Halaman Informasi Tautan Portal Lowongan Publik</div>;
 
       case 'admin-accounts':
-        // PERBAIKAN: Menggunakan komentar standar dua garis miring (//) agar tidak merusak switch-case
         return <AdminAccounts />;
-
-      // =========================================================================
-      // SOLUSI FIX MENU KOSONG: Menangkap ID Klik dari Komponen Sidebar
-      // =========================================================================
       
-      // Jika menu Pengaturan Umum diklik
       case 'settings':
         return <SettingsTab />;
 
-      // Jika menu Pengaturan Batas Waktu SLA diklik
       case 'sla-settings':
         return <SettingsTab activeSubTab="sla-settings" />;
 
-      // =========================================================================
-      // JARING PENGAMAN EMERGENSI: Jika ID Tab meleset, kembalikan ke Beranda Utama
-      // =========================================================================
       default:
         return (
           <div className="space-y-6">
@@ -88,7 +93,7 @@ export function App() {
           </div>
           <div className="text-right hidden sm:block">
             <span className="text-xs font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wider">
-              Hak Akses: {currentAdmin?.role || 'Admin'}
+              Hak Akses: {currentAdmin?.role || 'Super Admin'}
             </span>
           </div>
         </div>
