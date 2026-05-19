@@ -9,7 +9,7 @@ import { SettingsTab } from './components/SettingsTab';
 import { AdminAccounts } from './components/AdminAccounts';
 
 export function App() {
-  const { currentAdmin, login, adminAccounts, candidates, jobs, interviews } = useRecruitment();
+  const { currentAdmin, login, logout, candidates, jobs, interviews } = useRecruitment();
   
   // Set halaman awal default ke 'portal-links' (Portal Lowongan Kerja Publik)
   const [activeTab, setActiveTab] = useState<string>('portal-links');
@@ -19,7 +19,7 @@ export function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // SINKRONISASI NAVIGASI: Jika sukses login, langsung arahkan ke dashboard internal
+  // SINKRONISASI MASUK: Jika sukses login, langsung kunci ke dashboard internal
   useEffect(() => {
     if (currentAdmin) {
       setActiveTab('dashboard');
@@ -40,25 +40,35 @@ export function App() {
     }
   };
 
-  // KONDISI PERBAIKAN BARU: Sidebar Kiri AKAN SELALU JALAN & MENGUNCI jika admin sudah login!
-  // Sesi tidak akan putus atau tersembunyi walaupun admin sedang melihat menu "Info Portal".
+  // =========================================================================
+  // FIX LOGOUT: Fungsi penangan keluar terpusat agar langsung melempar ke Portal
+  // =========================================================================
+  const handleAbsoluteLogout = () => {
+    if (logout) {
+      logout(); // Hapus sesi admin dari context perekrutan
+    }
+    setActiveTab('portal-links'); // Paksa navigasi kembali ke Portal Utama Publik
+  };
+
+  // Sidebar Kiri akan tampil menemani admin JIKA sesi admin terdeteksi aktif
   const showSidebar = !!currentAdmin;
 
   return (
-    <div className="flex h-screen w-full bg-slate-50 overflow-hidden font-sans">
+    // FIX LAYOUT DASHBOARD: 'h-screen w-screen overflow-hidden' mengunci viewport agar layout tidak pecah atau terpotong
+    <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans antialiased">
       
-      {/* 1. SIDEBAR NAVIGASI INTERNAL (Tetap kokoh mengunci di kiri layar) */}
+      {/* 1. SIDEBAR NAVIGASI INTERNAL (Hanya tampil jika admin login) */}
       {showSidebar && (
         <Sidebar 
           activeTab={activeTab} 
-          onTabChange={(tabId) => setActiveTab(tabId)} 
+          onTabChange={(tabId) => setActiveTab(tabId)}
+          onLogout={handleAbsoluteLogout} // Teruskan fungsi logout terpadu ke komponen anak
         />
       )}
 
-      {/* 2. AREA UTAMA: Mengunci viewport h-screen dan mengaktifkan overflow-y-auto hanya di area ini 
-          Langkah ini menjamin data dashboard tidak akan terpotong dan bisa di-scroll ke bawah secara utuh! */}
-      <div className="flex-1 flex flex-col h-full overflow-y-auto">
-        <main className="p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto flex-1 pb-24">
+      {/* 2. AREA UTAMA: overflow-y-auto menjamin seluruh konten dashboard memanjang ke bawah secara utuh */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto pb-20">
           
           {/* HEADER ATAS PANEL */}
           <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6 text-left">
@@ -72,11 +82,11 @@ export function App() {
                 </h1>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                {!currentAdmin ? 'TalentHub Portal Karir Publik' : `Sistem Dashboard Internal HRIS — Multi-role Status`}
+                {!currentAdmin ? 'TalentHub Portal Karir Publik' : 'Sistem Dashboard Internal HRIS'}
               </p>
             </div>
 
-            {/* SISI KANAN HEADER */}
+            {/* SISI KANAN HEADER: Navigasi Login Tanpa Duplikasi Tombol Keluar */}
             <div className="flex items-center gap-3">
               {!currentAdmin ? (
                 activeTab === 'portal-links' ? (
@@ -96,7 +106,6 @@ export function App() {
                   </button>
                 )
               ) : (
-                // JIKA SUDAH LOGIN: Hanya menampilkan badge hak akses (Tanpa duplikasi tombol logout)
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wider">
                     Akses: {currentAdmin.role}
@@ -189,12 +198,12 @@ export function App() {
 
               case 'dashboard':
                 return (
-                  <div className="space-y-6">
-                    {/* KEY REMOUNTING RE-RENDER DATA AGAR STATS CARDS TERISI AMAN */}
+                  // FIX KESELURUHAN VIEW: Pembungkus ruang bernilai w-full agar layout stats cards melebar sempurna 
+                  <div className="w-full space-y-6 block">
                     <StatsCards key={`stats-${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
                     
-                    <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
-                      <h3 className="font-bold text-slate-800 text-base">Selamat Datang Kembali, {currentAdmin?.username}!</h3>
+                    <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm text-left">
+                      <h3 className="font-bold text-slate-800 text-base">Selamat Datang Kembali, {currentAdmin?.username || 'Superadmin'}!</h3>
                       <p className="text-xs text-slate-500 mt-1">Gunakan panel navigasi di sebelah kiri untuk mengelola operasional rekrutmen TalentHub.</p>
                     </div>
                   </div>
