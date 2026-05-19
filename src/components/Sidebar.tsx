@@ -33,7 +33,12 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { currentAdmin, logout } = useRecruitment();
 
   return (
-    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 sticky top-0 h-screen shrink-0 z-40 text-left`}>
+    /* FIX FIX PERMANEN VERTICAL SCROLL: 
+       Menggunakan kombinasi utilitas tailwind 'sticky top-0 h-screen overflow-y-auto' 
+       ini mengunci posisi box sidebar secara mutlak di layar kiri sehingga tidak akan ikut bergerak 
+       atau tergeser ke atas saat admin melakukan pergeseran halaman (scroll) secara vertikal!
+    */
+    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 sticky top-0 h-screen shrink-0 z-40 text-left border-r border-slate-800`}>
       {/* Bagian Atas: Logo */}
       <div className="p-6 flex items-center justify-between border-b border-slate-700/50">
         {!collapsed && (
@@ -50,7 +55,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         </button>
       </div>
 
-      {/* Bagian Tengah: Navigasi Internal */}
+      {/* Bagian Tengah: Navigasi Menu */}
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
         {adminItems.map((item) => {
           const Icon = item.icon;
