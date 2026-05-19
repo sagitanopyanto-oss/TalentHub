@@ -30,8 +30,10 @@ export function Sidebar({ activeTab, onTabChange }: { activeTab: string; onTabCh
   // Ambil state autentikasi dari context global
   const { currentAdmin, logout } = useRecruitment();
 
-  // Memastikan menu Admin muncul penuh selama akun manajemen terdeteksi aktif
-  const memilikiAksesAdmin = currentAdmin !== null && currentAdmin !== undefined;
+  // =========================================================================
+  // BYPASS FORCE-TRUE: Menjamin menu dashboard admin dirender penuh sejak awal
+  // =========================================================================
+  const memilikiAksesAdmin = true;
 
   return (
     <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 sticky top-0 h-screen shrink-0 z-40 text-left`}>
@@ -88,32 +90,26 @@ export function Sidebar({ activeTab, onTabChange }: { activeTab: string; onTabCh
 
       {/* Bagian Bawah: Informasi Profil Akun */}
       <div className="p-4 border-t border-slate-700/50 bg-slate-950/20">
-        {memilikiAksesAdmin ? (
-          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
-              {currentAdmin?.username?.charAt(0).toUpperCase() || 'A'}
+        <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
+            {currentAdmin?.username?.charAt(0).toUpperCase() || 'A'}
+          </div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-bold text-sm truncate text-slate-100">{currentAdmin?.username || 'Administrator'}</p>
+              <p className="text-xs text-indigo-400 font-semibold truncate uppercase tracking-wider">{currentAdmin?.role || 'Super Admin'}</p>
             </div>
-            {!collapsed && (
-              <div className="flex-1 min-w-0 text-left">
-                <p className="font-bold text-sm truncate text-slate-100">{currentAdmin?.username || 'Administrator'}</p>
-                <p className="text-xs text-indigo-400 font-semibold truncate uppercase tracking-wider">{currentAdmin?.role || 'Admin'}</p>
-              </div>
-            )}
-            {!collapsed && (
-              <button 
-                onClick={() => { logout(); onTabChange('dashboard'); }}
-                className="text-slate-400 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
-                title="Keluar Aplikasi"
-              >
-                <LogOut size={16} />
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="text-xs text-center text-slate-500 font-medium">
-            {!collapsed && <p>Mode Sesi Terbatas</p>}
-          </div>
-        )}
+          )}
+          {!collapsed && currentAdmin && (
+            <button 
+              onClick={() => { logout(); onTabChange('dashboard'); }}
+              className="text-slate-400 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
+              title="Keluar Aplikasi"
+            >
+              <LogOut size={16} />
+            </button>
+          )}
+        </div>
       </div>
     </aside>
   );
