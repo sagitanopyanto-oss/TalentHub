@@ -1,4 +1,4 @@
-import { MapPin, Clock, Users, Pencil, Trash2, X, EyeOff, ExternalLink } from 'lucide-react';
+import { MapPin, Clock, Users, Pencil, Trash2, X, EyeOff, ExternalLink, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { useRecruitment } from '../context/RecruitmentContext';
 import { Job } from '../data/mockData';
@@ -19,12 +19,21 @@ function formatRupiah(num: number) {
   return num.toLocaleString('id-ID');
 }
 
+// Helper format tanggal lokal agar seraras dengan komponen tabel dan jadwal
+function formatFriendlyDate(dateStr: string) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 export function JobListings({ onSelectForApply }: { onSelectForApply: (id: number) => void }) {
   const { jobs, addJob, updateJob, deleteJob, canCreateOrDelete, canCreateJobs, getJobApplicantCount } = useRecruitment();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // State Loading untuk Cloud Saver
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState<string>(''); // State validasi form internal
 
   const emptyForm = {
     title: '',
@@ -51,11 +60,13 @@ export function JobListings({ onSelectForApply }: { onSelectForApply: (id: numbe
   const handleOpenAdd = () => {
     setEditingJob(null);
     setFormData(emptyForm);
+    setValidationError('');
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (job: Job) => {
     setEditingJob(job);
+    setValidationError('');
     setFormData({
       title: job.title,
       department: job.department,
@@ -80,18 +91,29 @@ export function JobListings({ onSelectForApply }: { onSelectForApply: (id: numbe
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError('');
+
+    const minSalaryNum = Number(formData.minSalary) || 0;
+    const maxSalaryNum = Number(formData.maxSalary) || 0;
+
+    // VALIDASI INTEGRITAS DATA: Cegah kesalahan logika rentang gaji sebelum dikirim ke Supabase
+    if (minSalaryNum > maxSalaryNum) {
+      setValidationError('Gaji minimum tidak boleh lebih besar dari gaji maksimum.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const jobData = {
-      title: formData.title,
+      title: formData.title.trim(),
       department: formData.department,
-      location: formData.location,
+      location: formData.location.trim(),
       type: formData.type,
       status: formData.status,
-      minSalary: Number(formData.minSalary) || 0,
-      maxSalary: Number(formData.maxSalary) || 0,
+      minSalary: minSalaryNum,
+      maxSalary: maxSalaryNum,
       hiddenSalary: formData.hiddenSalary,
-      jobDescription: formData.jobDescription,
+      jobDescription: formData.jobDescription.trim(),
       responsibilities: formData.responsibilities.split('\n').map(s => s.trim()).filter(Boolean),
       qualifications: formData.qualifications.split('\n').map(s => s.trim()).filter(Boolean),
       skills: formData.skills.split('\n').map(s => s.trim()).filter(Boolean),
@@ -116,6 +138,7 @@ export function JobListings({ onSelectForApply }: { onSelectForApply: (id: numbe
       setFormData(emptyForm);
     } catch (error) {
       console.error('Gagal memproses data lowongan ke Supabase:', error);
+      setValidationError('Terjadi kesalahan koneksi saat menyimpan ke cloud.');
     } finally {
       setIsSubmitting(false);
     }
@@ -161,7 +184,7 @@ export function JobListings({ onSelectForApply }: { onSelectForApply: (id: numbe
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${statusColors[job.status] || 'bg-slate-100 text-slate-600'}`}>{job.status}</span>
                   </div>
                   <h3 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{job.title}</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Dibuat pada {job.postedDate}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Dibuat pada {formatFriendlyDate(job.postedDate)}</p>
                 </div>
               </div>
 
@@ -228,6 +251,13 @@ export function JobListings({ onSelectForApply }: { onSelectForApply: (id: numbe
             </div>
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 text-left">
+              {validationError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 text-red-600 text-xs font-semibold rounded-xl">
+                  <AlertTriangle size={16} />
+                  <span>{validationError}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Jabatan / Posisi Pekerjaan *</label>
@@ -368,7 +398,7 @@ export function JobListings({ onSelectForApply }: { onSelectForApply: (id: numbe
       {/* Delete Confirm */}
       {deleteConfirmId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6 text-center text-left">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6 text-center">
             <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Trash2 size={24} className="text-red-500" />
             </div>
