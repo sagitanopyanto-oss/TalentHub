@@ -43,12 +43,12 @@ function DetailPopup({ title, data, columns, onClose }: {
   );
 }
 
-// 1. GRAFIK TREN LAMARAN BULANAN
+// 1. GRAFIK TREN LAMARAN BULANAN (SINKRON DENGAN EXCEL TREN BULANAN)
 export function ApplicationChart() {
   const { candidates } = useRecruitment();
   const [popup, setPopup] = useState<any | null>(null);
 
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   
   const last6Months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date();
@@ -62,8 +62,9 @@ export function ApplicationChart() {
   const chartData = last6Months.map(m => {
     const monthlyCands = candidates.filter(c => c.appliedDate && c.appliedDate.startsWith(m.key));
     const applications = monthlyCands.length;
-    const hires = monthlyCands.filter(c => c.stage === 'Hired').length;
-    return { month: m.label, applications, hires, rawKey: m.key };
+    // Sinkronisasi pendeteksian Hired berdasarkan tanggal hiredDate (jika ada) atau appliedDate bulanan
+    const hires = candidates.filter(c => c.stage === 'Hired' && ((c.hiredDate && c.hiredDate.startsWith(m.key)) || (!c.hiredDate && c.appliedDate && c.appliedDate.startsWith(m.key)))).length;
+    return { month: `${m.label} ${m.key.split('-')[0].substring(2)}`, applications, hires, rawKey: m.key };
   });
 
   const handleBarClick = (data: any) => {
@@ -119,23 +120,28 @@ export function ApplicationChart() {
   );
 }
 
-// 2. GRAFIK DISTRIBUSI PER DEPARTEMEN (SINKRONISASI DINAMIS & BERSIH)
+// 2. GRAFIK DISTRIBUSI PER DEPARTEMEN (SINKRON DENGAN SHEET DEPARTEMEN EXCEL)
 export function DepartmentChart() {
   const { jobs, candidates } = useRecruitment();
   const [popup, setPopup] = useState<any | null>(null);
 
-  // Mengumpulkan seluruh departemen unik dari list lowongan yang terdaftar di database Supabase
-  const distinctDepartments = Array.from(new Set(jobs.map(j => j.department)));
+  const distinctDepartments = Array.from(new Set(jobs.map(j => j.department).filter(Boolean)));
+  const departmentsToRender = distinctDepartments.length > 0 ? distinctDepartments : ['Lainnya'];
 
-  // Fallback standar agar grafik tidak kosong jika database belum memiliki data lowongan sama sekali
-  const departmentsToRender = distinctDepartments.length > 0 
-    ? distinctDepartments 
-    : ['Engineering', 'Design', 'Product', 'Marketing', 'HR & Legal', 'Finance', 'Operations'];
-
-  // Memetakan jumlah lowongan aktif dan total kandidat sukses (Hired) per departemen secara riil
+  // PERBAIKAN: Memetakan relasi kandidat ke departemen secara akurat menggunakan cross-reference judul loker
   const chartData = departmentsToRender.map(dept => {
-    const hires = candidates.filter(c => c.department === dept && c.stage === 'Hired').length;
+    const totalApplicantsInDept = candidates.filter(c => {
+      let candidateDept = c.department;
+      if (!candidateDept && c.position) {
+        const matchedJob = jobs.find(j => j.title?.toLowerCase().trim() === c.position?.toLowerCase().trim());
+        if (matchedJob) candidateDept = matchedJob.department;
+      }
+      return (candidateDept || 'Lainnya') === dept;
+    });
+
+    const hires = totalApplicantsInDept.filter(c => c.stage === 'Hired').length;
     const openings = jobs.filter(j => j.department === dept && j.status === 'Active').length;
+    
     return { name: dept, hires, openings };
   });
 
@@ -149,7 +155,7 @@ export function DepartmentChart() {
       jobs: filteredJobs.map(j => ({
         title: j.title,
         status: j.status,
-        applicants: candidates.filter(c => c.position === j.title).length,
+        applicants: candidates.filter(c => c.position?.toLowerCase().trim() === j.title?.toLowerCase().trim()).length,
         postedDate: j.postedDate
       }))
     });
@@ -192,24 +198,46 @@ export function DepartmentChart() {
   );
 }
 
-// 3. GRAFIK OPERASIONAL BIAYA REKRUTMEN
+// 3. GRAFIK OPERASIONAL BIAYA REKRUTMEN (SINKRON 100% DENGAN SHEET COST HIRING EXCEL)
 export function CostHiringChart() {
   const { candidates, hiringBudget } = useRecruitment();
   const [popup, setPopup] = useState<any | null>(null);
 
-  const monthNames = ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
-  const chartData = monthNames.map(m => {
-    const cost = candidates.filter(c => c.stage === 'Hired').length * 150000;
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  
+  const last6Months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (5 - i));
     return {
-      month: m,
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: monthNames[d.getMonth()],
+    };
+  });
+
+  // PERBAIKAN: Menghitung biaya operasional dinamis berbasis akumulasi real-time per bulan (searah logika Excel)
+  const chartData = last6Months.map(m => {
+    const monthlyCands = candidates.filter(c => c.appliedDate && c.appliedDate.startsWith(m.key));
+    const totalCandidates = monthlyCands.length;
+    
+    // Rumus sinkron: total kandidat masuk dikali Rp 150.000
+    const costPerCandidate = 150000;
+    const cost = totalCandidates * costPerCandidate;
+    const hiredCount = monthlyCands.filter(c => c.stage === 'Hired').length;
+
+    return {
+      month: `${m.label} ${m.key.split('-')[0].substring(2)}`,
       cost: cost,
-      budget: hiringBudget,
-      candidatesCount: candidates.filter(c => c.stage === 'Hired').length
+      budget: hiringBudget || 50000000, // Fallback budget jika di context kosong
+      candidatesCount: totalCandidates,
+      hiredCount: hiredCount
     };
   });
 
   const formatRupiahSingkat = (value: any) => {
-    return `Rp ${(Number(value) / 1000000).toFixed(1)}jt`;
+    if (Number(value) >= 1000000) {
+      return `Rp ${(Number(value) / 1000000).toFixed(1)}jt`;
+    }
+    return `Rp ${Number(value).toLocaleString('id-ID')}`;
   };
 
   const handleAreaClick = (data: any) => {
@@ -254,9 +282,10 @@ export function CostHiringChart() {
           data={[popup]}
           columns={[
             { key: 'month', label: 'Bulan' },
-            { key: 'candidatesCount', label: 'Kandidat Lolos (Hired)' },
+            { key: 'candidatesCount', label: 'Total Pelamar Masuk' },
+            { key: 'hiredCount', label: 'Lolos Kualifikasi (Hired)' },
             { key: 'cost', label: 'Total Biaya Pengeluaran', format: (v) => `Rp ${v.toLocaleString('id-ID')}` },
-            { key: 'budget', label: 'Sisa Anggaran Terjaga', format: (v) => `Rp ${v.toLocaleString('id-ID')}` }
+            { key: 'budget', label: 'Batas Limit Budget', format: (v) => `Rp ${v.toLocaleString('id-ID')}` }
           ]}
           onClose={() => setPopup(null)}
         />
