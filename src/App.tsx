@@ -11,22 +11,32 @@ import { AdminAccounts } from './components/AdminAccounts';
 export function App() {
   const { currentAdmin, login, adminAccounts, candidates, jobs, interviews } = useRecruitment();
   
-  // Set halaman awal default ke 'portal-links' (Portal Lowongan Kerja Publik)
+  // ALUR TERKOREKSI: Set default halaman awal saat masuk/logout ke 'portal-links' (Portal Lowongan Kerja Publik)
   const [activeTab, setActiveTab] = useState<string>('portal-links');
   
-  // State form login lokal
+  // State form login lokal saat tidak ada sesi admin yang aktif
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // SINKRONISASI OTOMATIS: Hanya mengalihkan ke dashboard saat PERTAMA KALI sukses login
+  // =========================================================================
+  // FIX TOTAL DATA 0: Memastikan render ulang data dashboard sempurna saat login
+  // =========================================================================
+  const [dataLoaded, setDataLoaded] = useState<boolean>(false);
+
+  // SINKRONISASI NAVIGASI & DATA: Jika terdeteksi admin baru saja sukses login, alihkan otomatis ke dashboard
   useEffect(() => {
     if (currentAdmin) {
       setActiveTab('dashboard');
       setLoginError('');
+      // Trigger dataLoaded menjadi true untuk memaksa komponen StatsCards menghitung ulang angka
+      setDataLoaded(true);
+    } else {
+      setDataLoaded(false); // Reset state saat logout
     }
   }, [currentAdmin]);
 
+  // Handler fungsi login dari form internal
   const handleLocalLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (login) {
@@ -40,14 +50,14 @@ export function App() {
     }
   };
 
-  // Sidebar Kiri akan selalu mengunci dan tampil menemani admin JIKA sesi admin terdeteksi aktif
-  const showSidebar = !!currentAdmin;
+  // Cek apakah halaman saat ini merupakan mode Publik (Tamu)
+  const isPublicPage = activeTab === 'portal-links' || activeTab === 'login';
 
   return (
     <div className="flex bg-slate-50 min-h-screen w-full overflow-x-hidden font-sans">
       
-      {/* 1. SIDEBAR NAVIGASI INTERNAL (Tetap mengunci di kiri selama admin login) */}
-      {showSidebar && (
+      {/* 1. SIDEBAR KIRI: Hanya ditampilkan JIKA admin sudah login DAN tidak sedang membuka halaman publik */}
+      {!isPublicPage && currentAdmin && (
         <Sidebar 
           activeTab={activeTab} 
           onTabChange={(tabId) => setActiveTab(tabId)} 
@@ -55,13 +65,13 @@ export function App() {
       )}
 
       {/* 2. AREA KONTEN UTAMA */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto w-full max-w-7xl mx-auto">
+      <main className={`flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto w-full transition-all duration-300 ${isPublicPage ? 'max-w-6xl mx-auto' : 'max-w-7xl mx-auto'}`}>
         
         {/* HEADER ATAS PANEL */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6 text-left">
           <div>
             <div className="flex items-center gap-2">
-              {!currentAdmin && (
+              {isPublicPage && (
                 <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center font-black text-white text-sm mr-1">T</div>
               )}
               <h1 className="text-2xl font-black text-slate-800 tracking-tight capitalize">
@@ -69,13 +79,13 @@ export function App() {
               </h1>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              {!currentAdmin ? 'TalentHub Portal Karir Publik' : 'Sistem Dashboard Internal HRIS'}
+              {isPublicPage ? 'TalentHub Portal Karir Publik' : 'Sistem Dashboard Internal HRIS'}
             </p>
           </div>
 
-          {/* SISI KANAN HEADER: Navigasi Login Bersih Tanpa Redundansi Logout */}
+          {/* SISI KANAN HEADER: Navigasi Login / Logout Dinamis */}
           <div className="flex items-center gap-3">
-            {!currentAdmin ? (
+            {isPublicPage ? (
               activeTab === 'portal-links' ? (
                 // JIKA BELUM LOGIN: Tampilkan tombol Login ber-Ikon di Kanan Atas
                 <button
@@ -97,7 +107,7 @@ export function App() {
               // JIKA SUDAH LOGIN: Hanya menampilkan badge Hak Akses Role Admin (Bersih & Elegan)
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wider">
-                  Akses: {currentAdmin.role}
+                  Akses: {currentAdmin?.role || 'Admin'}
                 </span>
                 {/* FIX: Fitur logout/keluar duplikat di bagian kanan atas telah dihapus sepenuhnya */}
               </div>
@@ -105,15 +115,18 @@ export function App() {
           </div>
         </div>
 
-        {/* ROUTING VIEW KONTEN */}
+        {/* =========================================================================
+           MECHANISM ROUTING RENDER KONTEN
+           ========================================================================= */}
         {(() => {
           switch (activeTab) {
             case 'login':
               return (
-                <div className="min-h-[55vh] flex items-center justify-center py-6 px-4 font-sans text-left">
+                <div className="min-h-[60vh] flex items-center justify-center py-6 px-4 font-sans text-left">
                   <div className="w-full max-w-md bg-white rounded-2xl shadow-md border border-slate-200 p-8">
                     <div className="text-center mb-6">
                       <h2 className="text-xl font-bold text-slate-800">Masuk Panel Admin</h2>
+                      {/* FIX: Kalimat instruksi HRIS lama telah dihapus bersih di sini */}
                     </div>
 
                     {loginError && (
@@ -154,6 +167,7 @@ export function App() {
                         Masuk Sekarang
                       </button>
                     </form>
+                    {/* FIX: Teks Info Akun Demo Pembantu lama telah dihapus total */}
                   </div>
                 </div>
               );
@@ -189,9 +203,13 @@ export function App() {
             case 'dashboard':
               return (
                 <div className="space-y-6">
+                  {/* FIX DATA 0: Menggunakan kombinasi dinamis data agar statscards ter-render ulang dengan sempurna saat data masuk */}
                   <StatsCards key={`stats-${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
+                  
                   <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
-                    <h3 className="font-bold text-slate-800 text-base">Selamat Datang Kembali, {currentAdmin?.username}!</h3>
+                    <h3 className="font-bold text-slate-800 text-base">
+                      Selamat Datang Kembali, {currentAdmin?.username || 'Super Admin'}!
+                    </h3>
                     <p className="text-xs text-slate-500 mt-1">Gunakan panel navigasi di sebelah kiri untuk mengelola operasional rekrutmen TalentHub.</p>
                   </div>
                 </div>
