@@ -7,7 +7,6 @@ import { StatsCards } from './components/StatsCards';
 import { SettingsTab } from './components/SettingsTab';
 import { AdminAccounts } from './components/AdminAccounts';
 
-// PENGAMAN NAMA EKSPOR: Diubah menjadi "App" agar sesuai dengan pemanggilan src/main.tsx
 export function App() {
   // State navigasi aktif, diatur default ke 'dashboard' halaman utama
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -45,7 +44,7 @@ export function App() {
         return <div className="p-8 bg-white rounded-2xl text-left text-sm text-slate-500 font-medium border border-slate-100 shadow-sm">Halaman Informasi Tautan Portal Lowongan Publik</div>;
 
       case 'admin-accounts':
-        {/* Panel Manajemen Kredensial Akun yang sudah diamankan */}
+        // PERBAIKAN: Menggunakan komentar standar dua garis miring (//) agar tidak merusak switch-case
         return <AdminAccounts />;
 
       // =========================================================================
