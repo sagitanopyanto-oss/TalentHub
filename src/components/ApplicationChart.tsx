@@ -44,27 +44,50 @@ function DetailPopup({ title, data, columns, onClose }: {
   );
 }
 
-// 1. GRAFIK TREN LAMARAN BULANAN (Eksport Komponen Utama)
+// HELPER KELOLA RENTANG WAKTU (Digunakan bersama oleh Grafik 1 & Grafik 3)
+function generateTimeSlots(timeframe: 'monthly' | '6months' | 'yearly', monthNames: string[], currentYear: number) {
+  let slots: { key: string; label: string }[] = [];
+  if (timeframe === 'monthly') {
+    const d = new Date();
+    slots = [{
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: `Bulan Ini (${monthNames[d.getMonth()]})`
+    }];
+  } else if (timeframe === '6months') {
+    slots = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      return {
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        label: `${monthNames[d.getMonth()]} ${String(d.getFullYear()).substring(2)}`
+      };
+    });
+  } else if (timeframe === 'yearly') {
+    slots = Array.from({ length: 3 }, (_, i) => {
+      const year = currentYear - (2 - i);
+      return { key: `${year}`, label: `Tahun ${year}` };
+    });
+  }
+  return slots;
+}
+
+// 1. GRAFIK TREN LAMARAN BULANAN (DENGAN FILTER JANGKA WAKTU)
 export function ApplicationChart() {
   const { candidates } = useRecruitment();
+  const [timeframe, setTimeframe] = useState<'monthly' | '6months' | 'yearly'>('6months');
   const [popup, setPopup] = useState<any | null>(null);
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  
-  const last6Months = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - (5 - i));
-    return {
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: monthNames[d.getMonth()],
-    };
-  });
+  const currentYear = new Date().getFullYear();
 
-  const chartData = last6Months.map(m => {
-    const monthlyCands = candidates.filter(c => c.appliedDate && c.appliedDate.startsWith(m.key));
+  const timeSlots = generateTimeSlots(timeframe, monthNames, currentYear);
+
+  const chartData = timeSlots.map(slot => {
+    const monthlyCands = candidates.filter(c => c.appliedDate && c.appliedDate.startsWith(slot.key));
     const applications = monthlyCands.length;
-    const hires = candidates.filter(c => c.stage === 'Hired' && ((c.hiredDate && c.hiredDate.startsWith(m.key)) || (!c.hiredDate && c.appliedDate && c.appliedDate.startsWith(m.key)))).length;
-    return { month: `${m.label} ${m.key.split('-')[0].substring(2)}`, applications, hires, rawKey: m.key };
+    const hires = candidates.filter(c => c.stage === 'Hired' && ((c.hiredDate && c.hiredDate.startsWith(slot.key)) || (!c.hiredDate && c.appliedDate && c.appliedDate.startsWith(slot.key)))).length;
+    
+    return { month: slot.label, applications, hires, rawKey: slot.key };
   });
 
   const handleBarClick = (data: any) => {
@@ -85,17 +108,33 @@ export function ApplicationChart() {
 
   return (
     <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-      <div className="mb-6">
-        <h3 className="text-base font-bold text-slate-800">Tren Lamaran & Kelulusan</h3>
-        <p className="text-xs text-slate-400 mt-0.5">Analisis statistik volume pelamar masuk berbanding kandidat diterima (6 bulan terakhir)</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h3 className="text-base font-bold text-slate-800">Tren Lamaran & Kelulusan</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Analisis kuantitas masuk berkas pelamar dibanding rasio kelulusan</p>
+        </div>
+        
+        {/* Kontrol Filter Waktu */}
+        <div className="flex p-1 bg-slate-100 rounded-xl self-start sm:self-center">
+          {(['monthly', '6months', 'yearly'] as const).map((type) => (
+            <button 
+              key={type}
+              onClick={() => setTimeframe(type)} 
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${timeframe === type ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              {type === 'monthly' ? 'Bulan Ini' : type === '6months' ? '6 Bulan' : 'Tahunan'}
+            </button>
+          ))}
+        </div>
       </div>
+
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} onClick={handleBarClick} className="cursor-pointer">
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} allowDecimals={false} />
-            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
             <Legend />
             <Bar dataKey="applications" name="Total Pelamar" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={24} />
             <Bar dataKey="hires" name="Kandidat Diterima (Hired)" fill="#10b981" radius={[6, 6, 0, 0]} barSize={24} />
@@ -105,7 +144,7 @@ export function ApplicationChart() {
 
       {popup && (
         <DetailPopup
-          title={`Daftar Pelamar Bulan: ${popup.month}`}
+          title={`Daftar Pelamar Periode: ${popup.month}`}
           data={popup.candidates}
           columns={[
             { key: 'name', label: 'Nama Pelamar' },
@@ -120,16 +159,35 @@ export function ApplicationChart() {
   );
 }
 
-// 2. GRAFIK DISTRIBUSI PER DEPARTEMEN
+// 2. GRAFIK DISTRIBUSI PER DEPARTEMEN (DENGAN FILTER JANGKA WAKTU)
 export function DepartmentChart() {
   const { jobs, candidates } = useRecruitment();
+  const [timeframe, setTimeframe] = useState<'monthly' | '6months' | 'yearly'>('6months');
   const [popup, setPopup] = useState<any | null>(null);
 
   const distinctDepartments = Array.from(new Set(jobs.map(j => j.department).filter(Boolean)));
   const departmentsToRender = distinctDepartments.length > 0 ? distinctDepartments : ['Lainnya'];
 
+  // Batasi kalkulasi kandidat masuk departemen berdasarkan rentang waktu terpilih
   const chartData = departmentsToRender.map(dept => {
     const totalApplicantsInDept = candidates.filter(c => {
+      if (!c.appliedDate) return false;
+
+      // Filter waktu dinamis
+      const d = new Date();
+      const currentYearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (timeframe === 'monthly' && !c.appliedDate.startsWith(currentYearMonth)) return false;
+      if (timeframe === '6months') {
+        const monthsRange = Array.from({ length: 6 }, (_, i) => {
+          const checkDate = new Date();
+          checkDate.setMonth(checkDate.getMonth() - (5 - i));
+          return `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}`;
+        });
+        if (!monthsRange.some(m => c.appliedDate.startsWith(m))) return false;
+      }
+      if (timeframe === 'yearly' && !c.appliedDate.startsWith(String(d.getFullYear()))) return false;
+
       let candidateDept = c.department;
       if (!candidateDept && c.position) {
         const matchedJob = jobs.find(j => j.title?.toLowerCase().trim() === c.position?.toLowerCase().trim());
@@ -162,17 +220,32 @@ export function DepartmentChart() {
 
   return (
     <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-      <div className="mb-6">
-        <h3 className="text-base font-bold text-slate-800">Distribusi per Departemen</h3>
-        <p className="text-xs text-slate-400 mt-0.5">Perbandingan jumlah lowongan aktif dengan total pelamar yang berhasil direkrut</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h3 className="text-base font-bold text-slate-800">Distribusi per Departemen</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Komparasi ketersediaan loker aktif vs jumlah pelamar lulus kualifikasi</p>
+        </div>
+        
+        <div className="flex p-1 bg-slate-100 rounded-xl self-start sm:self-center">
+          {(['monthly', '6months', 'yearly'] as const).map((type) => (
+            <button 
+              key={type}
+              onClick={() => setTimeframe(type)} 
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${timeframe === type ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              {type === 'monthly' ? 'Bulan Ini' : type === '6months' ? '6 Bulan' : 'Tahunan'}
+            </button>
+          ))}
+        </div>
       </div>
+
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} onClick={handleBarClick} className="cursor-pointer">
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} allowDecimals={false} />
-            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
             <Legend />
             <Bar dataKey="openings" name="Lowongan Aktif" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={20} />
             <Bar dataKey="hires" name="Total Kelulusan (Hired)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
@@ -206,32 +279,7 @@ export function CostHiringChart() {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   const currentYear = new Date().getFullYear();
 
-  let timeSlots: { key: string; label: string }[] = [];
-
-  if (timeframe === 'monthly') {
-    const d = new Date();
-    timeSlots = [{
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: `Bulan Ini (${monthNames[d.getMonth()]})`
-    }];
-  } else if (timeframe === '6months') {
-    timeSlots = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - (5 - i));
-      return {
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: `${monthNames[d.getMonth()]} ${String(d.getFullYear()).substring(2)}`
-      };
-    });
-  } else if (timeframe === 'yearly') {
-    timeSlots = Array.from({ length: 3 }, (_, i) => {
-      const year = currentYear - (2 - i);
-      return {
-        key: `${year}`,
-        label: `Tahun ${year}`
-      };
-    });
-  }
+  const timeSlots = generateTimeSlots(timeframe, monthNames, currentYear);
 
   const chartData = timeSlots.map(slot => {
     const filteredCands = candidates.filter(c => {
@@ -298,24 +346,15 @@ export function CostHiringChart() {
         </div>
         
         <div className="flex p-1 bg-slate-100 rounded-xl self-start sm:self-center">
-          <button 
-            onClick={() => setTimeframe('monthly')} 
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${timeframe === 'monthly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            Bulan Ini
-          </button>
-          <button 
-            onClick={() => setTimeframe('6months')} 
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${timeframe === '6months' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            6 Bulan
-          </button>
-          <button 
-            onClick={() => setTimeframe('yearly')} 
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${timeframe === 'yearly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            Tahunan
-          </button>
+          {(['monthly', '6months', 'yearly'] as const).map((type) => (
+            <button 
+              key={type}
+              onClick={() => setTimeframe(type)} 
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${timeframe === type ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              {type === 'monthly' ? 'Bulan Ini' : type === '6months' ? '6 Bulan' : 'Tahunan'}
+            </button>
+          ))}
         </div>
       </div>
 
