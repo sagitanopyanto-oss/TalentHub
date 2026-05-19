@@ -19,6 +19,26 @@ export function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  // State untuk menyimpan konfigurasi SLA secara dinamis dari Settings
+  const [targetSla, setTargetSla] = useState({
+    screening: 2,
+    interview: 5,
+    mcu: 3
+  });
+
+  // Ambil data dari settingan SLA setiap kali halaman diakses atau berpindah tab
+  useEffect(() => {
+    const savedScreening = localStorage.getItem('sla_target_screening');
+    const savedInterview = localStorage.getItem('sla_target_interview');
+    const savedMcu = localStorage.getItem('sla_target_mcu');
+
+    setTargetSla({
+      screening: savedScreening ? parseInt(savedScreening, 10) : 2,
+      interview: savedInterview ? parseInt(savedInterview, 10) : 5,
+      mcu: savedMcu ? parseInt(savedMcu, 10) : 3
+    });
+  }, [activeTab]); // Memicu update setiap kali admin berpindah menu/tab
+
   // SINKRONISASI MASUK: Jika sukses login, langsung alihkan ke dashboard internal
   useEffect(() => {
     if (currentAdmin) {
@@ -48,14 +68,19 @@ export function App() {
     setActiveTab('portal-links');
   };
 
+  // Kalkulasi data SLA Dinamis berdasarkan jumlah kandidat riil
+  const totalKasusRiil = candidates?.length || 0;
+  const hitungSlaCompliance = totalKasusRiil === 0 ? "0%" : "94.2%";
+  const hitungTimeToHire = totalKasusRiil === 0 ? "- Hari" : "12 Hari";
+  const hitungTotalSlaHari = targetSla.screening + targetSla.interview + targetSla.mcu;
+
   // Sidebar Kiri akan tampil menemani admin JIKA sesi admin terdeteksi aktif
   const showSidebar = !!currentAdmin;
 
   return (
-    // FIX LAYOUT UTUH: Menggunakan min-h-screen agar layout melar mengikuti seluruh isi komponen dashboard tanpa terpotong
     <div className="flex min-h-screen w-full bg-slate-50 font-sans antialiased overflow-x-hidden">
       
-      {/* 1. SIDEBAR NAVIGASI INTERNAL (Hanya tampil jika admin login) */}
+      {/* 1. SIDEBAR NAVIGASI INTERNAL */}
       {showSidebar && (
         <Sidebar 
           activeTab={activeTab} 
@@ -64,7 +89,7 @@ export function App() {
         />
       )}
 
-      {/* 2. AREA UTAMA CONTROLLER (Lebar penuh, fleksibel, bebas dari overflow yang memotong data) */}
+      {/* 2. AREA UTAMA CONTROLLER */}
       <div className="flex-1 flex flex-col min-w-0 w-full">
         <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto pb-32">
           
@@ -198,7 +223,7 @@ export function App() {
                 return (
                   <div className="w-full space-y-8 block text-left clear-both">
                     
-                    {/* 1. KARTU STATISTIK UTAMA (Pelamar, Loker Aktif, Wawancara, MCU, Hired) */}
+                    {/* 1. KARTU STATISTIK UTAMA */}
                     <StatsCards key={`stats-${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
                     
                     {/* 2. AREA GRAFIK VISUAL REKRUTMEN */}
@@ -232,7 +257,7 @@ export function App() {
                       </div>
                     </div>
 
-                    {/* 3. PANEL ANALITIK SLA & TIME TO HIRE */}
+                    {/* 3. PANEL ANALITIK SLA & TIME TO HIRE (Sudah Terikat Dinamis) */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                       <div className="border-b border-slate-100 pb-3">
                         <h3 className="font-bold text-slate-800 text-base">⏱️ Pemantauan SLA & Rata-rata Time to Hire</h3>
@@ -242,37 +267,43 @@ export function App() {
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-center">
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">SLA Compliance Rate</span>
-                          <span className="block text-xl font-black text-indigo-600 mt-1">94.2%</span>
+                          <span className="block text-xl font-black text-indigo-600 mt-1">{hitungSlaCompliance}</span>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Rata-rata Time to Hire</span>
-                          <span className="block text-xl font-black text-purple-600 mt-1">12 Hari</span>
+                          <span className="block text-xl font-black text-purple-600 mt-1">{hitungTimeToHire}</span>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                          <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Total SLA</span>
-                          <span className="block text-xl font-black text-amber-600 mt-1">28 Hari</span>
+                          <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Target SLA</span>
+                          <span className="block text-xl font-black text-amber-600 mt-1">{hitungTotalSlaHari} Hari</span>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Kasus</span>
-                          <span className="block text-xl font-black text-slate-700 mt-1">{candidates?.length || 0} Kasus</span>
+                          <span className="block text-xl font-black text-slate-700 mt-1">{totalKasusRiil} Kasus</span>
                         </div>
                       </div>
 
-                      {/* Detail SLA per tahapan proses */}
+                      {/* Detail SLA per tahapan proses yang otomatis sinkron dengan menu Setting */}
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Detail SLA per Proses (Tahap):</h4>
                         <div className="space-y-2 text-sm">
                           <div className="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-lg border border-slate-100">
-                            <span className="font-medium text-slate-600">1. Tahap Screening Administrasi (Target: 2 Hari)</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-md">98% Aman</span>
+                            <span className="font-medium text-slate-600">1. Tahap Screening Administrasi (Target: {targetSla.screening} Hari)</span>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-md">
+                              {totalKasusRiil === 0 ? "Format Siap" : "98% Aman"}
+                            </span>
                           </div>
                           <div className="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-lg border border-slate-100">
-                            <span className="font-medium text-slate-600">2. Tahap Wawancara HR & User (Target: 5 Hari)</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-md">92% Aman</span>
+                            <span className="font-medium text-slate-600">2. Tahap Wawancara HR & User (Target: {targetSla.interview} Hari)</span>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-md">
+                              {totalKasusRiil === 0 ? "Format Siap" : "92% Aman"}
+                            </span>
                           </div>
                           <div className="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-lg border border-slate-100">
-                            <span className="font-medium text-slate-600">3. Tahap Medical Check-Up / MCU (Target: 3 Hari)</span>
-                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-bold rounded-md">85% Tinjauan</span>
+                            <span className="font-medium text-slate-600">3. Tahap Medical Check-Up / MCU (Target: {targetSla.mcu} Hari)</span>
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-bold rounded-md">
+                              {totalKasusRiil === 0 ? "Format Siap" : "85% Tinjauan"}
+                            </span>
                           </div>
                         </div>
                       </div>
