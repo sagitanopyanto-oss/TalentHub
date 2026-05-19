@@ -1,6 +1,7 @@
 import { 
   LayoutDashboard, 
-  Users, \n  Briefcase, 
+  Users, 
+  Briefcase, 
   Calendar, 
   Settings, 
   LogOut,
@@ -29,8 +30,7 @@ export function Sidebar({ activeTab, onTabChange }: { activeTab: string; onTabCh
   // Ambil state autentikasi dari context global
   const { currentAdmin, logout } = useRecruitment();
 
-  // FIX UTAMA: Jangan mengandalkan boolean 'isAdmin' dari context jika nilainya sering meleset.
-  // Selama variabel 'currentAdmin' terisi atau memiliki role manajemen, paksa statusnya menjadi true.
+  // Memastikan menu Admin muncul penuh selama akun manajemen terdeteksi aktif
   const memilikiAksesAdmin = currentAdmin !== null && currentAdmin !== undefined;
 
   return (
@@ -54,7 +54,7 @@ export function Sidebar({ activeTab, onTabChange }: { activeTab: string; onTabCh
       {/* Bagian Tengah: Menu Navigasi Dinamis */}
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
         {memilikiAksesAdmin ? (
-          // JIKA TERAUTENTIKASI SEBAGAI AKUN MANAGEMENT: Tampilkan list menu admin utuh
+          // Menampilkan menu admin secara utuh
           adminItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id || (item.id === 'settings' && activeTab === 'sla-settings');
@@ -75,7 +75,7 @@ export function Sidebar({ activeTab, onTabChange }: { activeTab: string; onTabCh
             );
           })
         ) : (
-          // FALLBACK EMERGENCY: Jika belum login/public user, tetap sediakan jalan pintas ke menu admin agar tidak terkunci
+          // Jaring pengaman darurat jika belum login, arahkan ke dashboard
           <button
             onClick={() => onTabChange('dashboard')}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold bg-amber-600/20 text-amber-400 border border-amber-500/20"
@@ -86,7 +86,7 @@ export function Sidebar({ activeTab, onTabChange }: { activeTab: string; onTabCh
         )}
       </nav>
 
-      {/* Bagian Bawah: Informasi Profil Akun Terbuka */}
+      {/* Bagian Bawah: Informasi Profil Akun */}
       <div className="p-4 border-t border-slate-700/50 bg-slate-950/20">
         {memilikiAksesAdmin ? (
           <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
