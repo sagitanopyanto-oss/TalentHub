@@ -1,58 +1,60 @@
 import { useState, useEffect } from 'react';
 import { useRecruitment } from '../context/RecruitmentContext';
-import { Save, Bell, ShieldCheck, Calendar, CheckCircle, Info, AlertCircle } from 'lucide-react';
+import { Save, Bell, ShieldCheck, Calendar, CheckCircle, Info } from 'lucide-react';
 import { SLASettings } from './SLASettings';
 
-// Tambahkan properti opsional untuk menangkap kiriman ID tab dari komponen induk jika ada
 export function SettingsTab({ activeSubTab }: { activeSubTab?: string }) {
-  const { hiringBudget, setHiringBudget, systemSettings, setSystemSettings, isAdmin } = useRecruitment();
-  const [tempSettings, setTempSettings] = useState(systemSettings);
-  const [tempBudget, setTempBudget] = useState<number | ''>(hiringBudget);
+  // Ambil state global dari context
+  const { hiringBudget, setHiringBudget, systemSettings, setSystemSettings } = useRecruitment();
+  
+  // Amankan state lokal dengan memberikan default objek kosong agar tidak crash jika data null/undefined
+  const [tempSettings, setTempSettings] = useState(systemSettings || {
+    emailNotifications: false,
+    autoScreening: false,
+    calendarIntegration: false
+  });
+  const [tempBudget, setTempBudget] = useState<number | ''>(hiringBudget || 0);
 
   const [isSystemSaved, setIsSystemSaved] = useState(false);
   const [isBudgetSaved, setIsBudgetSaved] = useState(false);
 
+  // Jalankan sinkronisasi data secara aman saat context terisi
   useEffect(() => {
-    if (systemSettings) setTempSettings(systemSettings);
-    if (hiringBudget !== undefined) setTempBudget(hiringBudget);
+    if (systemSettings) {
+      setTempSettings(systemSettings);
+    }
+    if (hiringBudget !== undefined) {
+      setTempBudget(hiringBudget);
+    }
   }, [systemSettings, hiringBudget]);
 
-  // Jika diakses oleh non-admin, kunci tampilan dengan pesan yang aman agar tidak blank putih
-  if (!isAdmin) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl text-left flex items-start gap-3 max-w-xl mx-auto mt-8">
-        <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
-        <div>
-          <h4 className="font-bold text-sm mb-1">Akses Ditolak</h4>
-          <p className="text-xs text-red-600 leading-relaxed">Anda tidak memiliki hak otorisasi yang cukup untuk membuka panel konfigurasi sistem TalentHub. Silakan hubungi Super Admin untuk informasi lebih lanjut.</p>
-        </div>
-      </div>
-    );
-  }
-
   const handleSaveSystem = () => {
-    setSystemSettings(tempSettings);
-    setIsSystemSaved(true);
-    setTimeout(() => setIsSystemSaved(false), 2000);
+    if (setSystemSettings) {
+      setSystemSettings(tempSettings);
+      setIsSystemSaved(true);
+      setTimeout(() => setIsSystemSaved(false), 2000);
+    }
   };
 
   const handleSaveBudget = () => {
-    const finalBudget = tempBudget === '' ? 0 : tempBudget;
-    setHiringBudget(finalBudget);
-    setTempBudget(finalBudget);
-    setIsBudgetSaved(true);
-    setTimeout(() => setIsBudgetSaved(false), 2000);
+    if (setHiringBudget) {
+      const finalBudget = tempBudget === '' ? 0 : tempBudget;
+      setHiringBudget(finalBudget);
+      setTempBudget(finalBudget);
+      setIsBudgetSaved(true);
+      setTimeout(() => setIsBudgetSaved(false), 2000);
+    }
   };
 
-  // LOGIKA PINTAR: Jika komponen induk secara spesifik memanggil tab 'sla-settings', langsung tampilkan SLASettings saja tanpa membungkus pengaturan budget bulanan.
+  // PENGAMAN 1: Jika dipanggil khusus untuk 'sla-settings', langsung bypass tampilkan SLASettings
   if (activeSubTab === 'sla-settings') {
     return <SLASettings />;
   }
 
   return (
-    <div className="space-y-8 text-left animate-in fade-in duration-200">
+    <div className="space-y-8 text-left w-full block block-important animate-in fade-in duration-200">
       {/* System Settings */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 block">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Pengaturan Sistem</h3>
@@ -140,7 +142,7 @@ export function SettingsTab({ activeSubTab }: { activeSubTab?: string }) {
       </div>
 
       {/* Budget Settings */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 block">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h3 className="text-xl font-bold text-slate-800">💵 Pengaturan Anggaran Hiring</h3>
@@ -192,7 +194,7 @@ export function SettingsTab({ activeSubTab }: { activeSubTab?: string }) {
         </div>
       </div>
 
-      {/* Tetap panggil SLASettings di bagian bawah secara fallback aman */}
+      {/* Panggil SLASettings di bagian paling bawah */}
       <SLASettings />
     </div>
   );
