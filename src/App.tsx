@@ -11,36 +11,35 @@ export function App() {
   // State navigasi aktif, diatur default ke 'dashboard' halaman utama
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   
-  // State pengunci untuk mencegah auto-login otomatis mendeteksi setelah logout sengaja dilakukan
-  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+  // Flag pengaman penting agar auto-login tidak langsung menyambar saat user sengaja klik Logout
+  const [userLoggedOut, setUserLoggedOut] = useState<boolean>(false);
   
-  // Ambil state dan fungsi manipulasi dari context global
+  // Ambil state operasional dari context global
   const { currentAdmin, login, adminAccounts, candidates, jobs, interviews } = useRecruitment();
 
-  // State pemicu internal untuk memastikan re-render komponen statistik saat data masuk
-  const [dataLoaded, setDataLoaded] = useState<boolean>(false);
-
   // =========================================================================
-  // EFFECT 1: AUTO-LOGIN SIMULATION DENGAN LOCK FLAG LOGOUT
+  // 1. AUTO-LOGIN SIMULATION (ANTI-LOOP FILTER)
   // =========================================================================
   useEffect(() => {
-    if (!currentAdmin && !isLoggingOut) {
+    // Hanya lakukan simulasi masuk jika sesi kosong DAN user tidak sedang menekan logout
+    if (!currentAdmin && !userLoggedOut) {
       if (adminAccounts && adminAccounts.length > 0) {
-        // Ambil akun pertama dari mock data untuk mensimulasikan login admin
         const defaultAdmin = adminAccounts[0];
         login?.(defaultAdmin.username, defaultAdmin.password);
       }
     }
-  }, [currentAdmin, adminAccounts, login, isLoggingOut]);
+  }, [currentAdmin, adminAccounts, login, userLoggedOut]);
 
-  // =========================================================================
-  // EFFECT 2: MEMASTIKAN DATA DASHBOARD TER-RENDERING SEMPURNA
-  // =========================================================================
-  useEffect(() => {
-    if (candidates?.length > 0 || jobs?.length > 0 || interviews?.length > 0) {
-      setDataLoaded(true);
-    }
-  }, [candidates, jobs, interviews]);
+  // Handler kustom penanganan jabat tangan proses logout secara aman
+  const handleSystemLogout = () => {
+    setUserLoggedOut(true); // Kunci pintu auto-login
+    setActiveTab('dashboard');
+    
+    // Berikan jeda waktu luang bagi aplikasi untuk membersihkan memori sebelum melepas bypass
+    setTimeout(() => {
+      setUserLoggedOut(false);
+    }, 1500);
+  };
 
   // FUNGSI NAVIGASI INTERN: Mengontrol komponen yang aktif di layar
   const renderMainContent = () => {
@@ -48,8 +47,11 @@ export function App() {
       case 'dashboard':
         return (
           <div className="space-y-6">
-            {/* Kartu Ringkasan KPI Utama dengan key pengarah re-render */}
-            <StatsCards key={dataLoaded ? 'loaded' : 'loading'} />
+            {/* FIX TOTAL DATA 0: Menggunakan panjang gabungan array data sebagai KEY pemicu.
+              Jika jumlah data berubah dari 0 menjadi terisi, React dipaksa merelasasi komponen 
+              dan angka riil di StatsCards dipastikan langsung muncul seketika!
+            */}
+            <StatsCards key={`${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
             
             {/* Banner Selamat Datang */}
             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
@@ -91,19 +93,9 @@ export function App() {
     }
   };
 
-  // Handler kustom penanganan proses logout aman tanpa loop gantung
-  const handleSystemLogout = () => {
-    setIsLoggingOut(true);
-    setActiveTab('dashboard');
-    // Berikan jeda waktu bagi state untuk membersihkan sebelum melepas sistem bypass
-    setTimeout(() => {
-      setIsLoggingOut(false);
-    }, 1200);
-  };
-
   return (
     <div className="flex bg-slate-50 min-h-screen w-full overflow-x-hidden font-sans">
-      {/* 1. Komponen Navigasi Kiri (Sidebar) dengan operan callback trigger logout baru */}
+      {/* 1. Komponen Navigasi Kiri (Sidebar) dengan operan pipa penanganan logout baru */}
       <Sidebar 
         activeTab={activeTab} 
         onTabChange={(tabId) => setActiveTab(tabId)} 
