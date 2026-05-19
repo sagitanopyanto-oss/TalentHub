@@ -2,7 +2,8 @@ import { useRecruitment } from '../context/RecruitmentContext';
 import { Candidate } from '../data/mockData';
 import { Clock, AlertTriangle, CheckCircle2, Timer, TrendingUp } from 'lucide-react';
 
-const stageOrder: Candidate['stage'][] = ['Screening', 'Interview', 'Assessment', 'Offer', 'Medical', 'Hired'];
+// PERBAIKAN: Masukkan 'Applied' ke dalam urutan agar indeks pelacakan hari bernilai akurat
+const stageOrder: Candidate['stage'][] = ['Applied', 'Screening', 'Interview', 'Assessment', 'Offer', 'Medical', 'Hired'];
 
 function daysBetween(date1: string, date2: string): number {
   if (!date1 || !date2) return 0;
@@ -12,10 +13,13 @@ function daysBetween(date1: string, date2: string): number {
 }
 
 function getElapsedTime(candidate: Candidate, currentStage: string): number {
+  const todayStr = new Date().toISOString().split('T')[0];
   const idx = stageOrder.indexOf(currentStage as Candidate['stage']);
-  if (idx <= 0) return daysBetween(candidate.appliedDate, new Date().toISOString().split('T')[0]);
+  
+  // Jika berada di tahap paling awal, hitung selisih dari tanggal melamar pertama kali
+  if (idx <= 0) return daysBetween(candidate.appliedDate, todayStr);
 
-  const dateFields: Record<string, string> = {
+  const dateFields: Record<string, string | null | undefined> = {
     'Applied': candidate.appliedDate,
     'Screening': candidate.appliedDate,
     'Interview': candidate.interviewDate,
@@ -25,19 +29,50 @@ function getElapsedTime(candidate: Candidate, currentStage: string): number {
     'Hired': candidate.hiredDate,
   };
 
-  const stageDate = dateFields[currentStage];
-  if (!stageDate) return daysBetween(candidate.appliedDate, new Date().toISOString().split('T')[0]);
-  return daysBetween(stageDate, new Date().toISOString().split('T')[0]);
+  // Mekanisme pelacakan mundur cerdas jika tanggal di tahap berjalan bernilai null
+  let validStartDate = dateFields[currentStage];
+  if (!validStartDate) {
+    for (let i = idx - 1; i >= 0; i--) {
+      const prevStage = stageOrder[i];
+      if (dateFields[prevStage]) {
+        validStartDate = dateFields[prevStage];
+        break;
+      }
+    }
+  }
+
+  return daysBetween(validStartDate || candidate.appliedDate, todayStr);
 }
 
 export function SLAInfo() {
-  const { candidates, slaConfig } = useRecruitment();
+  // SINKRONISASI GLOBAL: Ambil state data rekrutmen serta jangka waktu aktif dari dasbor utama
+  const { candidates, slaConfig, selectedTimeRange } = useRecruitment();
 
-  // Analisis per tahap
+  // Filter waktu dinamis agar laporan SLA sinkron secara realtime saat filter dasbor diubah
+  const getFilteredCandidates = (): Candidate[] => {
+    const today = new Date();
+    return candidates.filter(candidate => {
+      const appliedDateStr = candidate.appliedDate || candidate.createdAt;
+      if (!appliedDateStr) return true;
+
+      const appDate = new Date(appliedDateStr);
+      const diffTime = Math.abs(today.getTime() - appDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (selectedTimeRange === 'month') return diffDays <= 30;
+      if (selectedTimeRange === '6months') return diffDays <= 180;
+      if (selectedTimeRange === 'year') return diffDays <= 365;
+      return true;
+    });
+  };
+
+  const filteredCandidates = getFilteredCandidates();
+
+  // Analisis per tahap berdasarkan data yang sudah tersaring waktu
   const stageAnalysis = slaConfig
     .filter(s => s.stage !== 'Hired')
     .map((sla) => {
-      const inStage = candidates.filter((c) => c.stage === sla.stage && c.stage !== 'Rejected');
+      const inStage = filteredCandidates.filter((c) => c.stage === sla.stage && c.stage !== 'Rejected');
       const violating = inStage.filter((c) => {
         const elapsed = getElapsedTime(c, sla.stage);
         return elapsed > sla.slaDays;
@@ -55,18 +90,19 @@ export function SLAInfo() {
     });
 
   // Time to hire analysis (rata-rata untuk yang sudah hired)
-  const hiredCandidates = candidates.filter(c => c.stage === 'Hired');
+  const hiredCandidates = filteredCandidates.filter(c => c.stage === 'Hired');
   const avgTimeToHire = hiredCandidates.length > 0
     ? Math.round(hiredCandidates.reduce((sum, c) => sum + daysBetween(c.appliedDate, c.hiredDate), 0) / hiredCandidates.length)
     : 0;
 
   // Overall SLA compliance
-  const totalActive = candidates.filter((c) => c.stage !== 'Rejected' && c.stage !== 'Hired').length;
+  const totalActive = filteredCandidates.filter((c) => c.stage !== 'Rejected' && c.stage !== 'Hired').length;
   const totalViolating = stageAnalysis.reduce((sum, s) => sum + s.violating, 0);
-  const overallCompliance = totalActive > 0 ? Math.round(((totalActive - totalViolating) / totalActive) * 100) : 100;
+  const overallCompliance = totalActive > 0 ?
+    Math.round(((totalActive - totalViolating) / totalActive) * 100) : 100;
 
   // Candidates at risk (dekat deadline SLA)
-  const atRiskCandidates = candidates
+  const atRiskCandidates = filteredCandidates
     .filter((c) => c.stage !== 'Rejected' && c.stage !== 'Hired')
     .map((c) => {
       const sla = slaConfig.find((s) => s.stage === c.stage);
@@ -126,7 +162,7 @@ export function SLAInfo() {
 
       {/* SLA Detail Table — Freeze Kolom "Tahap" + Header */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
+        <div className="px-6 py-4 border-b border-slate-100 text-left">
           <h3 className="font-bold text-slate-800">Detail SLA per Tahap</h3>
           <p className="text-xs text-slate-500 mt-1">Monitoring batas waktu dan compliance rate setiap tahap rekrutmen</p>
         </div>
@@ -146,7 +182,7 @@ export function SLAInfo() {
             <tbody className="divide-y divide-slate-100">
               {stageAnalysis.map((stage) => (
                 <tr key={stage.stage} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-3 px-6 sticky left-0 bg-white border-b border-r border-slate-100 z-20 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.08)]">
+                  <td className="py-3 px-6 sticky left-0 bg-white border-b border-r border-slate-100 z-20 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.08)] text-left">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
                       <span className="text-sm font-semibold text-slate-700 whitespace-nowrap">{stage.stage}</span>
@@ -196,7 +232,7 @@ export function SLAInfo() {
 
       {/* Candidates At Risk */}
       {atRiskCandidates.length > 0 && (
-        <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden text-left">
           <div className="px-6 py-4 border-b border-amber-100 bg-amber-50/50">
             <div className="flex items-center gap-2">
               <AlertTriangle size={18} className="text-amber-600" />
@@ -211,8 +247,8 @@ export function SLAInfo() {
                   {c.avatar}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800">{c.name}</p>
-                  <p className="text-xs text-slate-500">{c.position} — Tahap: {c.stage}</p>
+                  <p className="text-sm font-semibold text-slate-800 truncate">{c.name}</p>
+                  <p className="text-xs text-slate-500 truncate">{c.position} — Tahap: <span className="font-semibold text-indigo-600">{c.stage}</span></p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
