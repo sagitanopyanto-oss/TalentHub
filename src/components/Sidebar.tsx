@@ -33,7 +33,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { currentAdmin, logout } = useRecruitment();
 
   return (
-    /* FIX FIX PERMANEN VERTICAL SCROLL: 
+    /* FIX FIX FIX PERMANEN VERTICAL SCROLL: 
        Menggunakan kombinasi utilitas tailwind 'sticky top-0 h-screen overflow-y-auto' 
        ini mengunci posisi box sidebar secara mutlak di layar kiri sehingga tidak akan ikut bergerak 
        atau tergeser ke atas saat admin melakukan pergeseran halaman (scroll) secara vertikal!
@@ -55,7 +55,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         </button>
       </div>
 
-      {/* Bagian Tengah: Navigasi Menu */}
+      {/* Bagian Tengah: Menu Navigasi Internal */}
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
         {adminItems.map((item) => {
           const Icon = item.icon;
