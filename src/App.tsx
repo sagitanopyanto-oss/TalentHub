@@ -11,21 +11,36 @@ export function App() {
   // State navigasi aktif, diatur default ke 'dashboard' halaman utama
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   
+  // State pengunci untuk mencegah auto-login otomatis mendeteksi setelah logout sengaja dilakukan
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
+  
   // Ambil state dan fungsi manipulasi dari context global
-  const { currentAdmin, login, adminAccounts } = useRecruitment();
+  const { currentAdmin, login, adminAccounts, candidates, jobs, interviews } = useRecruitment();
+
+  // State pemicu internal untuk memastikan re-render komponen statistik saat data masuk
+  const [dataLoaded, setDataLoaded] = useState<boolean>(false);
 
   // =========================================================================
-  // AUTO-LOGIN SIMULATION: Memaksa sistem terisi akun jika mendeteksi sesi kosong
+  // EFFECT 1: AUTO-LOGIN SIMULATION DENGAN LOCK FLAG LOGOUT
   // =========================================================================
   useEffect(() => {
-    if (!currentAdmin) {
+    if (!currentAdmin && !isLoggingOut) {
       if (adminAccounts && adminAccounts.length > 0) {
         // Ambil akun pertama dari mock data untuk mensimulasikan login admin
         const defaultAdmin = adminAccounts[0];
         login?.(defaultAdmin.username, defaultAdmin.password);
       }
     }
-  }, [currentAdmin, adminAccounts, login]);
+  }, [currentAdmin, adminAccounts, login, isLoggingOut]);
+
+  // =========================================================================
+  // EFFECT 2: MEMASTIKAN DATA DASHBOARD TER-RENDERING SEMPURNA
+  // =========================================================================
+  useEffect(() => {
+    if (candidates?.length > 0 || jobs?.length > 0 || interviews?.length > 0) {
+      setDataLoaded(true);
+    }
+  }, [candidates, jobs, interviews]);
 
   // FUNGSI NAVIGASI INTERN: Mengontrol komponen yang aktif di layar
   const renderMainContent = () => {
@@ -33,8 +48,8 @@ export function App() {
       case 'dashboard':
         return (
           <div className="space-y-6">
-            {/* Kartu Ringkasan KPI Utama */}
-            <StatsCards />
+            {/* Kartu Ringkasan KPI Utama dengan key pengarah re-render */}
+            <StatsCards key={dataLoaded ? 'loaded' : 'loading'} />
             
             {/* Banner Selamat Datang */}
             <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
@@ -76,10 +91,24 @@ export function App() {
     }
   };
 
+  // Handler kustom penanganan proses logout aman tanpa loop gantung
+  const handleSystemLogout = () => {
+    setIsLoggingOut(true);
+    setActiveTab('dashboard');
+    // Berikan jeda waktu bagi state untuk membersihkan sebelum melepas sistem bypass
+    setTimeout(() => {
+      setIsLoggingOut(false);
+    }, 1200);
+  };
+
   return (
     <div className="flex bg-slate-50 min-h-screen w-full overflow-x-hidden font-sans">
-      {/* 1. Komponen Navigasi Kiri (Sidebar) */}
-      <Sidebar activeTab={activeTab} onTabChange={(tabId) => setActiveTab(tabId)} />
+      {/* 1. Komponen Navigasi Kiri (Sidebar) dengan operan callback trigger logout baru */}
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={(tabId) => setActiveTab(tabId)} 
+        onCustomLogout={handleSystemLogout}
+      />
 
       {/* 2. Area Konten Dinamis */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
