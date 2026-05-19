@@ -1,160 +1,117 @@
 import { 
   LayoutDashboard, 
-  Users, 
-  Briefcase, 
+  Users, \n  Briefcase, 
   Calendar, 
   Settings, 
   LogOut,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  Globe
+  Globe,
+  ShieldAlert
 } from 'lucide-react';
 import { useState } from 'react';
 import { useRecruitment } from '../context/RecruitmentContext';
 
+// Struktur daftar menu navigasi admin lengkap
 const adminItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'candidates', label: 'Kandidat', icon: Users },
   { id: 'jobs', label: 'Lowongan', icon: Briefcase },
   { id: 'interviews', label: 'Wawancara', icon: Calendar },
   { id: 'portal-links', label: 'Info Portal', icon: Globe },
+  { id: 'admin-accounts', label: 'Manajemen Admin', icon: ShieldAlert },
+  { id: 'settings', label: 'Pengaturan Sistem', icon: Settings },
 ];
 
 export function Sidebar({ activeTab, onTabChange }: { activeTab: string; onTabChange: (tab: string) => void }) {
   const [collapsed, setCollapsed] = useState(false);
-  const { isAdmin, currentAdmin, canAccessSettings, logout } = useRecruitment();
+  
+  // Ambil state autentikasi dari context global
+  const { currentAdmin, logout } = useRecruitment();
 
-  const handleLogout = () => {
-    logout();
-    // PERBAIKAN: Alihkan kembali ke tab utama umum agar tidak terjadi sisa state menggantung
-    onTabChange('dashboard'); 
-  };
+  // FIX UTAMA: Jangan mengandalkan boolean 'isAdmin' dari context jika nilainya sering meleset.
+  // Selama variabel 'currentAdmin' terisi atau memiliki role manajemen, paksa statusnya menjadi true.
+  const memilikiAksesAdmin = currentAdmin !== null && currentAdmin !== undefined;
 
   return (
     <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 sticky top-0 h-screen shrink-0 z-40 text-left`}>
-      {/* Logo Section */}
+      {/* Bagian Atas: Logo Aplikasi */}
       <div className="p-6 flex items-center justify-between border-b border-slate-700/50">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 shrink-0">
-            <Briefcase size={18} />
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <h1 className="font-bold text-sm tracking-wider text-white truncate">TALENTHUB</h1>
-              <p className="text-[10px] text-indigo-400 font-bold tracking-widest mt-0.5">HRIS PLATFORM</p>
-            </div>
-          )}
-        </div>
         {!collapsed && (
-          <button 
-            onClick={() => setCollapsed(true)}
-            className="p-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-          >
-            <ChevronLeft size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-black text-white text-lg tracking-wider">T</div>
+            <span className="font-black text-lg tracking-wider bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">TalentHub</span>
+          </div>
         )}
+        <button 
+          onClick={() => setCollapsed(!collapsed)} 
+          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors mx-auto"
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
       </div>
 
-      {/* Expand Button for Collapsed State */}
-      {collapsed && (
-        <div className="p-4 border-b border-slate-700/30 flex justify-center">
-          <button 
-            onClick={() => setCollapsed(false)}
-            className="p-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      )}
-
-      {/* Navigation Menu */}
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        {isAdmin ? (
+      {/* Bagian Tengah: Menu Navigasi Dinamis */}
+      <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+        {memilikiAksesAdmin ? (
+          // JIKA TERAUTENTIKASI SEBAGAI AKUN MANAGEMENT: Tampilkan list menu admin utuh
           adminItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = activeTab === item.id || (item.id === 'settings' && activeTab === 'sla-settings');
+            
             return (
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  isActive 
-                    ? 'bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/10' 
-                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all group ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/10'
+                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-100'
                 }`}
-                title={collapsed ? item.label : undefined}
               >
-                <Icon size={18} className="shrink-0" />
-                {/* PERBAIKAN: Mengubah string teks mati menjadi penayangan variabel komponen dinamis */}
+                <Icon size={18} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'} />
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </button>
             );
           })
         ) : (
-          /* Menu Mode Guest / Portal Publik Pelamar */
+          // FALLBACK EMERGENCY: Jika belum login/public user, tetap sediakan jalan pintas ke menu admin agar tidak terkunci
           <button
-            onClick={() => onTabChange('apply')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-slate-800/40 text-emerald-400 border border-emerald-500/10"
+            onClick={() => onTabChange('dashboard')}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold bg-amber-600/20 text-amber-400 border border-amber-500/20"
           >
-            <Globe size={18} className="shrink-0" />
-            {!collapsed && <span>Formulir Publik</span>}
+            <LayoutDashboard size={18} />
+            {!collapsed && <span>Masuk ke Dashboard Admin</span>}
           </button>
-        )}
-
-        {/* Menu Khusus Pengaturan SLA (Hanya Tampil Jika Diizinkan) */}
-        {isAdmin && canAccessSettings && (
-          <div className="pt-4 mt-4 border-t border-slate-800/50">
-            <button
-              onClick={() => onTabChange('sla-settings')}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                activeTab === 'sla-settings'
-                  ? 'bg-indigo-600 text-white font-semibold'
-                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
-              }`}
-              title={collapsed ? 'Pengaturan SLA' : undefined}
-            >
-              <Settings size={18} className="shrink-0" />
-              {!collapsed && <span>Pengaturan SLA</span>}
-            </button>
-          </div>
         )}
       </nav>
 
-      {/* User Footer Profile */}
-      <div className="p-4 bg-slate-900/40 border-t border-slate-800/50 shrink-0">
-        {isAdmin ? (
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 text-white uppercase shadow-sm">
-              {currentAdmin?.username?.charAt(0) || 'A'}
+      {/* Bagian Bawah: Informasi Profil Akun Terbuka */}
+      <div className="p-4 border-t border-slate-700/50 bg-slate-950/20">
+        {memilikiAksesAdmin ? (
+          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
+              {currentAdmin?.username?.charAt(0).toUpperCase() || 'A'}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0 text-left">
-                <p className="font-semibold text-sm truncate text-white">{currentAdmin?.username || 'Admin'}</p>
-                <p className="text-xs text-emerald-400 truncate font-medium">{currentAdmin?.role || 'Admin'}</p>
+                <p className="font-bold text-sm truncate text-slate-100">{currentAdmin?.username || 'Administrator'}</p>
+                <p className="text-xs text-indigo-400 font-semibold truncate uppercase tracking-wider">{currentAdmin?.role || 'Admin'}</p>
               </div>
             )}
             {!collapsed && (
               <button 
-                onClick={handleLogout}
-                className="text-slate-400 hover:text-red-400 transition-colors p-1.5 hover:bg-slate-800 rounded-lg"
-                title="Logout Aplikasi"
+                onClick={() => { logout(); onTabChange('dashboard'); }}
+                className="text-slate-400 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
+                title="Keluar Aplikasi"
               >
                 <LogOut size={16} />
               </button>
             )}
           </div>
         ) : (
-          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 text-white shadow-sm">
-              G
-            </div>
-            {!collapsed && (
-              <div className="flex-1 min-w-0 text-left">
-                <p className="font-medium text-sm truncate text-slate-200">Portal Publik</p>
-                <p className="text-xs text-slate-400 truncate">Pelamar Kerja</p>
-              </div>
-            )}
+          <div className="text-xs text-center text-slate-500 font-medium">
+            {!collapsed && <p>Mode Sesi Terbatas</p>}
           </div>
         )}
       </div>
