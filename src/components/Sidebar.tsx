@@ -28,11 +28,11 @@ export function Sidebar({ activeTab, onTabChange, onLogoutSuccess }: SidebarProp
     if (logout) {
       logout();
     }
-    onLogoutSuccess(); // Jalankan callback untuk pindah tab ke 'portal-links'
+    onLogoutSuccess(); // Mengalihkan tab ke portal lowongan kerja publik
   };
 
   return (
-    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 sticky top-0 h-screen shrink-0 z-40 text-left`}`}>
+    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 sticky top-0 h-screen shrink-0 z-40 text-left`}>
       {/* Bagian Atas: Logo */}
       <div className="p-6 flex items-center justify-between border-b border-slate-700/50">
         {!collapsed && (
@@ -103,7 +103,6 @@ export function Sidebar({ activeTab, onTabChange, onLogoutSuccess }: SidebarProp
       {/* Bagian Bawah: Profil Akun / Opsi Login */}
       <div className="p-4 border-t border-slate-700/50 bg-slate-950/20">
         {currentAdmin ? (
-          // Jika login, tampilkan info admin dan tombol log out
           <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white">
               {currentAdmin.username.charAt(0).toUpperCase()}
@@ -125,7 +124,6 @@ export function Sidebar({ activeTab, onTabChange, onLogoutSuccess }: SidebarProp
             )}
           </div>
         ) : (
-          // Jika belum login, sediakan tombol navigasi "Masuk Admin"
           <button
             onClick={() => onTabChange('login')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${
