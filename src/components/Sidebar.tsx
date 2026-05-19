@@ -26,11 +26,12 @@ const adminItems = [
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  onLogout: () => void; // Tambahkan properti fungsi penangan logout terpadu
 }
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, onLogout }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const { currentAdmin, logout } = useRecruitment();
+  const { currentAdmin } = useRecruitment();
 
   return (
     <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 h-screen sticky top-0 shrink-0 z-50 text-left border-r border-slate-800 overflow-y-auto`}>
@@ -73,7 +74,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         })}
       </nav>
 
-      {/* Bagian Bawah: Info Profil Sesi & Tombol Keluar */}
+      {/* Bagian Bawah: Info Profil Sesi & Tombol Keluar Terkoneksi */}
       <div className="p-4 border-t border-slate-700/50 bg-slate-950/20 shrink-0">
         <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
@@ -87,7 +88,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           )}
           {!collapsed && (
             <button 
-              onClick={() => logout && logout()}
+              onClick={onLogout} // FIX: Memanggil fungsi pembersihan mutlak dari parent App.tsx
               className="text-slate-400 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
               title="Keluar dari Sistem Admin"
             >
