@@ -33,14 +33,9 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { currentAdmin, logout } = useRecruitment();
 
   return (
-    /* FIX FIX FIX PERMANEN VERTICAL SCROLL: 
-       Menggunakan kombinasi utilitas tailwind 'sticky top-0 h-screen overflow-y-auto' 
-       ini mengunci posisi box sidebar secara mutlak di layar kiri sehingga tidak akan ikut bergerak 
-       atau tergeser ke atas saat admin melakukan pergeseran halaman (scroll) secara vertikal!
-    */
-    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 sticky top-0 h-screen shrink-0 z-40 text-left border-r border-slate-800`}>
+    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white flex flex-col transition-all duration-300 h-screen sticky top-0 shrink-0 z-50 text-left border-r border-slate-800 overflow-y-auto`}>
       {/* Bagian Atas: Logo */}
-      <div className="p-6 flex items-center justify-between border-b border-slate-700/50">
+      <div className="p-6 flex items-center justify-between border-b border-slate-700/50 shrink-0">
         {!collapsed && (
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-black text-white text-lg tracking-wider">T</div>
@@ -79,7 +74,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       </nav>
 
       {/* Bagian Bawah: Info Profil Sesi & Tombol Keluar */}
-      <div className="p-4 border-t border-slate-700/50 bg-slate-950/20">
+      <div className="p-4 border-t border-slate-700/50 bg-slate-950/20 shrink-0">
         <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
             {currentAdmin?.username?.charAt(0).toUpperCase() || 'A'}
