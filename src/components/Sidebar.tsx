@@ -39,6 +39,7 @@ export function Sidebar({ activeTab, onTabChange, onCustomLogout }: SidebarProps
   // BYPASS FORCE-TRUE: Menjamin menu dashboard admin dirender penuh sejak awal
   const memilikiAksesAdmin = true;
 
+  // Interseptor tombol klik logout untuk mencegah sistem pembaca otomatis macet
   const handleActionLogout = () => {
     if (onCustomLogout) {
       onCustomLogout();
