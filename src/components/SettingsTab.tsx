@@ -1,93 +1,181 @@
 import { useState, useEffect } from 'react';
 import { useRecruitment } from '../context/RecruitmentContext';
-import { Save, Bell, ShieldCheck, Calendar } from 'lucide-react';
+import { Save, Bell, ShieldCheck, Calendar, CheckCircle, Info } from 'lucide-react';
 import { SLASettings } from './SLASettings';
 
 export function SettingsTab() {
   const { hiringBudget, setHiringBudget, systemSettings, setSystemSettings } = useRecruitment();
   const [tempSettings, setTempSettings] = useState(systemSettings);
-  const [tempBudget, setTempBudget] = useState(hiringBudget);
+  const [tempBudget, setTempBudget] = useState<number | ''>(hiringBudget);
+
+  // State Feedback visual untuk memberikan indikasi sukses simpan ke pengguna
+  const [isSystemSaved, setIsSystemSaved] = useState(false);
+  const [isBudgetSaved, setIsBudgetSaved] = useState(false);
 
   useEffect(() => {
     setTempSettings(systemSettings);
     setTempBudget(hiringBudget);
   }, [systemSettings, hiringBudget]);
 
+  const handleSaveSystem = () => {
+    setSystemSettings(tempSettings);
+    setIsSystemSaved(true);
+    setTimeout(() => setIsSystemSaved(false), 2000); // Reset status setelah 2 detik
+  };
+
+  const handleSaveBudget = () => {
+    // Kembalikan ke angka 0 jika input dikosongkan sebelum disimpan
+    const finalBudget = tempBudget === '' ? 0 : tempBudget;
+    setHiringBudget(finalBudget);
+    setTempBudget(finalBudget);
+    setIsBudgetSaved(true);
+    setTimeout(() => setIsBudgetSaved(false), 2000); // Reset status setelah 2 detik
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 text-left">
       {/* System Settings */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Pengaturan Sistem</h3>
-            <p className="text-slate-500">Konfigurasi preferensi dashboard Anda.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Konfigurasi preferensi fungsionalitas otomasi dashboard Anda</p>
           </div>
-          <button onClick={() => setSystemSettings(tempSettings)} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors text-sm flex items-center gap-2">
-            <Save size={16} /> Simpan Pengaturan
+         
+          <button 
+            onClick={handleSaveSystem} 
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm ${
+              isSystemSaved 
+                ? 'bg-emerald-500 text-white shadow-emerald-500/10' 
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/10'
+            }`}
+          >
+            {isSystemSaved ? (
+              <>
+                <CheckCircle size={16} className="animate-bounce" /> Tersimpan!
+              </>
+            ) : (
+              <>
+                <Save size={16} /> Simpan Pengaturan
+              </>
+            )}
           </button>
         </div>
-        <div className="space-y-6 max-w-2xl">
-          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl">
-            <div>
-              <h4 className="font-semibold text-slate-800 mb-1">Notifikasi Email <Bell size={14} className="inline text-slate-400"/></h4>
-              <p className="text-sm text-slate-500">Terima notifikasi ketika ada kandidat baru</p>
+
+        <div className="space-y-4 max-w-2xl">
+          {/* Notifikasi Email */}
+          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:border-indigo-100 transition-colors bg-white">
+            <div className="pr-4">
+              <h4 className="font-bold text-slate-800 text-sm mb-0.5 flex items-center gap-1.5">
+                Notifikasi Email <Bell size={14} className="text-slate-400"/>
+              </h4>
+              <p className="text-xs text-slate-500">Kirimkan pemberitahuan otomatis ke email tim HR ketika ada berkas pelamar baru masuk</p>
             </div>
-            <label className="inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" checked={tempSettings.emailNotifications} onChange={e => setTempSettings({...tempSettings, emailNotifications: e.target.checked})} />
-              <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            <label className="inline-flex items-center cursor-pointer shrink-0">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={tempSettings.emailNotifications} 
+                onChange={e => setTempSettings({...tempSettings, emailNotifications: e.target.checked})} 
+              />
+              <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
             </label>
           </div>
-          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl">
-            <div>
-              <h4 className="font-semibold text-slate-800 mb-1">Auto-Screening <ShieldCheck size={14} className="inline text-slate-400"/></h4>
-              <p className="text-sm text-slate-500">Screening otomatis berdasarkan kriteria</p>
+
+          {/* Auto-Screening */}
+          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:border-indigo-100 transition-colors bg-white">
+            <div className="pr-4">
+              <h4 className="font-bold text-slate-800 text-sm mb-0.5 flex items-center gap-1.5">
+                Auto-Screening Berkas <ShieldCheck size={14} className="text-slate-400"/>
+              </h4>
+              <p className="text-xs text-slate-500">Gunakan kecerdasan buatan untuk menyaring kompetensi dasar pelamar secara otomatis</p>
             </div>
-            <label className="inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" checked={tempSettings.autoScreening} onChange={e => setTempSettings({...tempSettings, autoScreening: e.target.checked})} />
-              <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            <label className="inline-flex items-center cursor-pointer shrink-0">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={tempSettings.autoScreening} 
+                onChange={e => setTempSettings({...tempSettings, autoScreening: e.target.checked})} 
+              />
+              <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
             </label>
           </div>
-          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl">
-            <div>
-              <h4 className="font-semibold text-slate-800 mb-1">Integrasi Kalender <Calendar size={14} className="inline text-slate-400"/></h4>
-              <p className="text-sm text-slate-500">Sinkronisasi jadwal wawancara dengan Google Calendar</p>
+
+          {/* Integrasi Kalender */}
+          <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl hover:border-indigo-100 transition-colors bg-white">
+            <div className="pr-4">
+              <h4 className="font-bold text-slate-800 text-sm mb-0.5 flex items-center gap-1.5">
+                Integrasi Kalender Perusahaan <Calendar size={14} className="text-slate-400"/>
+              </h4>
+              <p className="text-xs text-slate-500">Sinkronisasikan setiap jadwal wawancara yang terbentuk dengan akun Google Calendar tim penguji</p>
             </div>
-            <label className="inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" checked={tempSettings.calendarIntegration} onChange={e => setTempSettings({...tempSettings, calendarIntegration: e.target.checked})} />
-              <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            <label className="inline-flex items-center cursor-pointer shrink-0">
+              <input 
+                type="checkbox" 
+                className="sr-only peer" 
+                checked={tempSettings.calendarIntegration} 
+                onChange={e => setTempSettings({...tempSettings, calendarIntegration: e.target.checked})} 
+              />
+              <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
             </label>
           </div>
         </div>
       </div>
 
       {/* Budget Settings */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h3 className="text-xl font-bold text-slate-800">💵 Pengaturan Budget Hiring</h3>
-            <p className="text-slate-500">Tentukan batas budget maksimal proses rekrutmen.</p>
+            <h3 className="text-xl font-bold text-slate-800">💵 Pengaturan Anggaran Hiring</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Tentukan limitasi alokasi dana maksimal operasional proses rekrutmen berjalan</p>
           </div>
-          <button onClick={() => setHiringBudget(tempBudget)} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors text-sm flex items-center gap-2">
-            <Save size={16} /> Simpan Budget
+          <button 
+            onClick={handleSaveBudget} 
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm ${
+              isBudgetSaved 
+                ? 'bg-emerald-500 text-white shadow-emerald-500/10' 
+                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-600/10'
+            }`}
+          >
+            {isBudgetSaved ? (
+              <>
+                <CheckCircle size={16} className="animate-bounce" /> Anggaran Diperbarui!
+              </>
+            ) : (
+              <>
+                <Save size={16} /> Simpan Anggaran
+              </>
+            )}
           </button>
         </div>
+        
         <div className="max-w-md space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Batas Anggaran Bulanan (Rp)</label>
+            <label className="block text-xs font-bold uppercase text-slate-600 mb-2">Batas Anggaran Bulanan (IDR)</label>
             <div className="flex gap-2">
               <input 
                 type="number" 
                 min="0" 
                 step="5000000"
+                placeholder="Contoh: 50000000"
                 value={tempBudget} 
-                onChange={e => setTempBudget(Number(e.target.value) || 0)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono" 
+                onChange={e => {
+                  const val = e.target.value;
+                  setTempBudget(val === '' ? '' : Number(val));
+                }}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold font-mono" 
               />
-              <span className="inline-flex items-center px-3.5 rounded-xl bg-slate-100 text-xs font-bold text-slate-500 border border-slate-200">Rupiah</span>
+              <span className="inline-flex items-center px-4 rounded-xl bg-slate-100 text-xs font-bold text-slate-500 border border-slate-200">Rupiah</span>
             </div>
           </div>
+          <p className="text-[11px] text-slate-400 font-medium flex items-start gap-1 leading-relaxed">
+            <Info size={12} className="text-slate-400 shrink-0 mt-0.5" /> 
+            Perubahan limit anggaran bulanan akan memengaruhi indikator grafik penggunaan biaya iklan loker eksternal di halaman utama.
+          </p>
         </div>
       </div>
+
+      {/* Render SLASettings */}
       <SLASettings />
     </div>
   );
