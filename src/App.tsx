@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRecruitment } from './context/RecruitmentContext';
-import { LogIn, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { LogIn, Info, AlertTriangle } from 'lucide-react';
 
 // Import komponen-komponen utama dashboard
 import { Sidebar } from './components/Sidebar';
@@ -32,14 +32,14 @@ export function App() {
   // State untuk melacak baris mana yang sedang memunculkan pop-up info detail
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
-  // Ambil data dari settingan SLA setiap kali halaman diakses atau berpindah tab
+  // AMBIL DATA SETTING SLA (Mendukung format nama kunci localStorage lama dan baru agar sinkron)
   useEffect(() => {
-    const savedApplied = localStorage.getItem('sla_applied') || localStorage.getItem('sla_target_applied');
-    const savedScreening = localStorage.getItem('sla_screening') || localStorage.getItem('sla_target_screening');
-    const savedInterview = localStorage.getItem('sla_interview') || localStorage.getItem('sla_target_interview');
-    const savedAssessment = localStorage.getItem('sla_assessment') || localStorage.getItem('sla_target_assessment');
-    const savedOffer = localStorage.getItem('sla_offer') || localStorage.getItem('sla_target_offer');
-    const savedMedical = localStorage.getItem('sla_medical') || localStorage.getItem('sla_target_medical');
+    const savedApplied = localStorage.getItem('sla_target_applied') || localStorage.getItem('sla_applied');
+    const savedScreening = localStorage.getItem('sla_target_screening') || localStorage.getItem('sla_screening');
+    const savedInterview = localStorage.getItem('sla_target_interview') || localStorage.getItem('sla_interview');
+    const savedAssessment = localStorage.getItem('sla_target_assessment') || localStorage.getItem('sla_assessment');
+    const savedOffer = localStorage.getItem('sla_target_offer') || localStorage.getItem('sla_offer');
+    const savedMedical = localStorage.getItem('sla_target_medical') || localStorage.getItem('sla_medical');
 
     setTargetSla({
       applied: savedApplied ? parseInt(savedApplied, 10) : 3,
@@ -49,7 +49,7 @@ export function App() {
       offer: savedOffer ? parseInt(savedOffer, 10) : 3,
       medical: savedMedical ? parseInt(savedMedical, 10) : 5
     });
-  }, [activeTab]);
+  }, [activeTab]); // Otomatis reload data setiap kali berpindah tab atau setelah save di menu Settings
 
   // SINKRONISASI MASUK: Jika sukses login, langsung alihkan ke dashboard internal
   useEffect(() => {
@@ -79,16 +79,14 @@ export function App() {
     setActiveTab('portal-links');
   };
 
-  // ATURAN BISNIS MUTLAK: Batas maksimal dari awal melamar hingga hired adalah 28 hari
+  // ATURAN BISNIS MUTLAK: Batas maksimal keseluruhan proses rekrutmen adalah 28 hari
   const MAKSIMAL_SLA_GLOBAL = 28;
 
-  // KALKULASI DATA AKTUAL (Dihitung dari kandidat yang sudah melewati proses/hired)
-  // Menghindari hardcoded angka 32 hari jika data aktual di sistem masih kosong
-  const kandidatHired = candidates?.filter(c => c.status?.toLowerCase() === 'hired') || [];
-  const hitungAverageTimeToHire = kandidatHired.length === 0 ? "-" : "0 Hari"; 
-  const hitungSlaCompliance = candidates?.length ? "0%" : "0%";
+  // KALKULASI DATA AKTUAL KOSONG (Mengikuti instruksi Anda, menunggu update aktual proses)
+  const hitungAverageTimeToHire = "-"; 
+  const hitungSlaCompliance = "0%";
 
-  // Struktur 6 Tahap Utama Seleksi Rekrutmen (Kandidat & Violation diset 0 mengikuti data aktual)
+  // Struktur 6 Tahap Utama Seleksi Rekrutmen (Target membaca state dinamis 'targetSla')
   const slaStagesData = [
     { id: 'applied', name: 'Applied', target: targetSla.applied, color: 'bg-indigo-600', kandidat: 0, compliant: 0, violation: 0, rate: '-' },
     { id: 'screening', name: 'Screening', target: targetSla.screening, color: 'bg-purple-500', kandidat: 0, compliant: 0, violation: 0, rate: '-' },
@@ -230,7 +228,7 @@ export function App() {
                     {/* 1. KARTU STATISTIK UTAMA */}
                     <StatsCards key={`stats-${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
                     
-                    {/* 2. AREA GRAFIK VISUAL REKRUTMEN */}
+                    {/* 2. AREA GRAFIK VISUAL REKRUTMEN (FIX: 4 GRAFIK UTUH DIKEMBALIKAN) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                         <h4 className="text-sm font-bold text-slate-700 mb-4">📈 Trend Aplikasi & Rekrutmen</h4>
@@ -238,22 +236,37 @@ export function App() {
                           [Visualisasi Grafik Trend Aplikasi]
                         </div>
                       </div>
+
                       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                         <h4 className="text-sm font-bold text-slate-700 mb-4">📊 Pipeline Rekrutmen</h4>
                         <div className="h-64 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400 border border-dashed border-slate-200">
                           [Visualisasi Grafik Pipeline Rekrutmen]
                         </div>
                       </div>
+
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h4 className="text-sm font-bold text-slate-700 mb-4">🏢 Rekrutmen per Departemen</h4>
+                        <div className="h-64 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400 border border-dashed border-slate-200">
+                          [Visualisasi Grafik Rekrutmen per Departemen]
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <h4 className="text-sm font-bold text-slate-700 mb-4">💰 Cost Hiring</h4>
+                        <div className="h-64 bg-slate-50 rounded-xl flex items-center justify-center text-xs text-slate-400 border border-dashed border-slate-200">
+                          [Visualisasi Grafik Cost Hiring]
+                        </div>
+                      </div>
                     </div>
 
-                    {/* 3. PANEL MONITORING UTAMA SLA (KOLOM DISEDERHANAKAN & DINAMIS) */}
+                    {/* 3. PANEL MONITORING UTAMA SLA */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                       <div className="border-b border-slate-100 pb-3">
                         <h3 className="font-bold text-slate-800 text-base">⏱️ Pemantauan SLA & Rata-rata Time to Hire</h3>
                         <p className="text-xs text-slate-400 mt-0.5">Monitoring batas waktu dan compliance rate setiap tahap rekrutmen.</p>
                       </div>
                       
-                      {/* Atas: Tiga Metrik Utama (Total Kasus di-delete sesuai instruksi) */}
+                      {/* Atas: Dua Metrik Utama (Total Kasus Dihapus, Time to Hire Kosong '-') */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <span className="block text-xs font-semibold text-slate-400 uppercase">SLA Compliance Rate</span>
@@ -261,9 +274,7 @@ export function App() {
                         </div>
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <span className="block text-xs font-semibold text-slate-400 uppercase">Rata-rata Time to Hire</span>
-                          <span className="block text-xl font-black text-indigo-600 mt-1">
-                            {hitungAverageTimeToHire === "-" ? "-" : `${hitungAverageTimeToHire}`}
-                          </span>
+                          <span className="block text-xl font-black text-indigo-600 mt-1">{hitungAverageTimeToHire}</span>
                         </div>
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
                           <span className="block text-xs font-semibold text-slate-400 uppercase">Total Batas SLA Maksimal</span>
@@ -301,9 +312,9 @@ export function App() {
                                     {stage.name}
                                   </td>
                                   
-                                  {/* Target SLA (Dinamis dari Setting SLA) */}
+                                  {/* Target SLA (SINKRON SAMA MENU SETTING) */}
                                   <td className="px-4 py-3.5">
-                                    <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md border border-slate-200/60 font-bold">
+                                    <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md border border-indigo-100 font-bold">
                                       {stage.target} hari
                                     </span>
                                   </td>
@@ -338,7 +349,7 @@ export function App() {
 
                                     {/* INTERAKTIF POP-UP INFO BOX */}
                                     {activePopup === stage.id && (
-                                      <div className="absolute right-4 top-10 z-50 w-64 p-4 bg-slate-900 text-white rounded-xl shadow-xl text-left border border-slate-800 animate-fade-in text-xs space-y-2 pointer-events-none">
+                                      <div className="absolute right-4 top-10 z-50 w-64 p-4 bg-slate-900 text-white rounded-xl shadow-xl text-left border border-slate-800 text-xs space-y-2 pointer-events-none">
                                         <div className="flex items-center gap-1.5 border-b border-slate-800 pb-1.5 font-bold text-indigo-400">
                                           <Info size={13} />
                                           <span>Informasi Tahap {stage.name}</span>
