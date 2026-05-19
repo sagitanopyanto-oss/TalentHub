@@ -27,23 +27,24 @@ const adminItems = [
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
-  onCustomLogout?: () => void;
+  onCustomLogout: () => void;
+  isManualLoggedOut: boolean;
 }
 
-export function Sidebar({ activeTab, onTabChange, onCustomLogout }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, onCustomLogout, isManualLoggedOut }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   
-  // Ambil state autentikasi dari context global
+  // Ambil fungsi logout bawaan dari context global
   const { currentAdmin, logout } = useRecruitment();
 
-  // BYPASS FORCE-TRUE: Menjamin menu dashboard admin dirender penuh sejak awal
-  const memilikiAksesAdmin = true;
+  // BYPASS NAVIGASI: Selama user tidak menekan logout secara sengaja, tampilkan menu admin penuh
+  const memilikiAksesAdmin = !isManualLoggedOut;
 
-  // Interseptor tombol klik logout untuk mencegah sistem pembaca otomatis macet
   const handleActionLogout = () => {
-    if (onCustomLogout) {
-      onCustomLogout();
-    }
+    // 1. Amankan state di App.tsx terlebih dahulu untuk mengunci auto-login
+    onCustomLogout();
+    
+    // 2. Bersihkan session admin di global context
     if (logout) {
       logout();
     }
@@ -70,6 +71,7 @@ export function Sidebar({ activeTab, onTabChange, onCustomLogout }: SidebarProps
       {/* Bagian Tengah: Menu Navigasi Dinamis */}
       <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
         {memilikiAksesAdmin ? (
+          // Jika dalam sesi admin aktif, render list menu operasional lengkap
           adminItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id || (item.id === 'settings' && activeTab === 'sla-settings');
@@ -90,38 +92,41 @@ export function Sidebar({ activeTab, onTabChange, onCustomLogout }: SidebarProps
             );
           })
         ) : (
-          <button
-            onClick={() => onTabChange('dashboard')}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold bg-amber-600/20 text-amber-400 border border-amber-500/20"
-          >
-            <LayoutDashboard size={18} />
-            {!collapsed && <span>Masuk ke Dashboard Admin</span>}
-          </button>
+          // JIKA LOGOUT BERHASIL: Tampilkan menu fallback publik aman agar sistem tidak crash
+          <div className="p-4 bg-slate-800/40 border border-slate-700/40 rounded-xl text-center text-xs text-slate-400">
+            Sesi Admin Telah Berakhir
+          </div>
         )}
       </nav>
 
       {/* Bagian Bawah: Informasi Profil Akun */}
       <div className="p-4 border-t border-slate-700/50 bg-slate-950/20">
-        <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
-            {currentAdmin?.username?.charAt(0).toUpperCase() || 'S'}
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0 text-left">
-              <p className="font-bold text-sm truncate text-slate-100">{currentAdmin?.username || 'superadmin'}</p>
-              <p className="text-xs text-indigo-400 font-semibold truncate uppercase tracking-wider">{currentAdmin?.role || 'SUPER ADMIN'}</p>
+        {memilikiAksesAdmin ? (
+          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-sm shrink-0 text-white shadow-md">
+              {currentAdmin?.username?.charAt(0).toUpperCase() || 'S'}
             </div>
-          )}
-          {!collapsed && (
-            <button 
-              onClick={handleActionLogout}
-              className="text-slate-400 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
-              title="Keluar Aplikasi"
-            >
-              <LogOut size={16} />
-            </button>
-          )}
-        </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0 text-left">
+                <p className="font-bold text-sm truncate text-slate-100">{currentAdmin?.username || 'superadmin'}</p>
+                <p className="text-xs text-indigo-400 font-semibold truncate uppercase tracking-wider">{currentAdmin?.role || 'SUPER ADMIN'}</p>
+              </div>
+            )}
+            {!collapsed && (
+              <button 
+                onClick={handleActionLogout}
+                className="text-slate-400 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-slate-800"
+                title="Keluar Aplikasi"
+              >
+                <LogOut size={16} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-center text-slate-500 font-medium">
+            {!collapsed && <p>Mode Sesi Terbatas</p>}
+          </div>
+        )}
       </div>
     </aside>
   );
