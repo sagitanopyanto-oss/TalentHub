@@ -3,8 +3,8 @@ import { useRecruitment } from '../context/RecruitmentContext';
 import { Job } from '../data/mockData';
 import { 
   MapPin, Clock, Users, Briefcase, Send, CheckCircle2, 
-  ArrowLeft, EyeOff, Building2, FileText, Mail, Phone, 
-  GraduationCap, User, Link2, Upload, AlertTriangle, X, File, Building, DollarSign
+  ArrowLeft, EyeOff, Building2, FileText, 
+  GraduationCap, User, Link2, Upload, AlertTriangle, X, File
 } from 'lucide-react';
 
 function formatRupiah(num: number) {
@@ -13,12 +13,6 @@ function formatRupiah(num: number) {
     return m % 1 === 0 ? `${m}jt` : `${m.toFixed(1).replace('.0', '')}jt`;
   }
   return num.toLocaleString('id-ID');
-}
-
-function formatDate(dateStr: string) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -103,6 +97,9 @@ export function ApplicationForm() {
     try {
       const cvBase64 = await fileToBase64(cvFile);
       
+      // SANITASI DATA FINANSIAL: Membersihkan karakter titik, spasi, dan Rp agar tersimpan sebagai angka murni string
+      const sanitizedSalary = formData.expectedSalary.replace(/[^0-9]/g, '');
+
       // Mengirimkan payload objek data pelamar yang sinkron dan aman untuk tabel Supabase
       await addCandidate({
         name: formData.name,
@@ -117,7 +114,7 @@ export function ApplicationForm() {
         experience: formData.experience,
         lastPosition: formData.lastPosition,
         workStatus: formData.workStatus,
-        expectedSalary: formData.expectedSalary,
+        expectedSalary: sanitizedSalary || '0', // Fallback aman angka 0 jika kosong
         portfolioLink: formData.portfolioLink,
         coverLetter: formData.coverLetter,
         position: selectedJob.title,
@@ -356,7 +353,7 @@ export function ApplicationForm() {
                   className="w-full sm:w-2/3 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors text-sm shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
-                    <>Meyimpan data ke cloud...</>
+                    <>Menyimpan data ke cloud...</>
                   ) : (
                     <><Send size={16} /> Kirim Lamaran Pekerjaan</>
                   )}
