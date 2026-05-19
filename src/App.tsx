@@ -19,7 +19,7 @@ export function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // SINKRONISASI MASUK: Jika sukses login, langsung kunci ke dashboard internal
+  // SINKRONISASI MASUK: Jika sukses login, langsung alihkan ke dashboard internal
   useEffect(() => {
     if (currentAdmin) {
       setActiveTab('dashboard');
@@ -40,35 +40,33 @@ export function App() {
     }
   };
 
-  // =========================================================================
-  // FIX LOGOUT: Fungsi penangan keluar terpusat agar langsung melempar ke Portal
-  // =========================================================================
+  // Fungsi penangan logout terpadu agar langsung melempar kembali ke Portal Utama
   const handleAbsoluteLogout = () => {
     if (logout) {
-      logout(); // Hapus sesi admin dari context perekrutan
+      logout();
     }
-    setActiveTab('portal-links'); // Paksa navigasi kembali ke Portal Utama Publik
+    setActiveTab('portal-links');
   };
 
   // Sidebar Kiri akan tampil menemani admin JIKA sesi admin terdeteksi aktif
   const showSidebar = !!currentAdmin;
 
   return (
-    // FIX LAYOUT DASHBOARD: 'h-screen w-screen overflow-hidden' mengunci viewport agar layout tidak pecah atau terpotong
-    <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans antialiased">
+    // KUNCI UTAMA: Menggunakan min-h-screen agar layout melar mengikuti seluruh isi komponen dashboard tanpa terpotong
+    <div className="flex min-h-screen w-full bg-slate-50 font-sans antialiased overflow-x-hidden">
       
       {/* 1. SIDEBAR NAVIGASI INTERNAL (Hanya tampil jika admin login) */}
       {showSidebar && (
         <Sidebar 
           activeTab={activeTab} 
           onTabChange={(tabId) => setActiveTab(tabId)}
-          onLogout={handleAbsoluteLogout} // Teruskan fungsi logout terpadu ke komponen anak
+          onLogout={handleAbsoluteLogout}
         />
       )}
 
-      {/* 2. AREA UTAMA: overflow-y-auto menjamin seluruh konten dashboard memanjang ke bawah secara utuh */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto pb-20">
+      {/* 2. AREA UTAMA CONTROLLER (Lebar penuh, fleksibel, bebas dari overflow-hidden yang memotong data) */}
+      <div className="flex-1 flex flex-col min-w-0 w-full">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto pb-32">
           
           {/* HEADER ATAS PANEL */}
           <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6 text-left">
@@ -86,7 +84,7 @@ export function App() {
               </p>
             </div>
 
-            {/* SISI KANAN HEADER: Navigasi Login Tanpa Duplikasi Tombol Keluar */}
+            {/* SISI KANAN HEADER */}
             <div className="flex items-center gap-3">
               {!currentAdmin ? (
                 activeTab === 'portal-links' ? (
@@ -198,11 +196,11 @@ export function App() {
 
               case 'dashboard':
                 return (
-                  // FIX KESELURUHAN VIEW: Pembungkus ruang bernilai w-full agar layout stats cards melebar sempurna 
-                  <div className="w-full space-y-6 block">
+                  // FIX TOTAL VIEW: Kontainer div dibuat block dengan w-full murni agar StatsCards dan grafik meluas maksimal secara utuh
+                  <div className="w-full space-y-6 block text-left">
                     <StatsCards key={`stats-${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
                     
-                    <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm text-left">
+                    <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm mt-6">
                       <h3 className="font-bold text-slate-800 text-base">Selamat Datang Kembali, {currentAdmin?.username || 'Superadmin'}!</h3>
                       <p className="text-xs text-slate-500 mt-1">Gunakan panel navigasi di sebelah kiri untuk mengelola operasional rekrutmen TalentHub.</p>
                     </div>
@@ -210,13 +208,13 @@ export function App() {
                 );
 
               case 'candidates':
-                return <div className="p-8 bg-white rounded-2xl text-left text-sm text-slate-500 font-medium border border-slate-100 shadow-sm">Halaman Manajemen Kandidat Pelamar</div>;
+                return <div className="p-8 bg-white rounded-2xl text-left text-sm text-slate-500 font-medium border border-slate-200 shadow-sm">Halaman Manajemen Kandidat Pelamar</div>;
 
               case 'jobs':
-                return <div className="p-8 bg-white rounded-2xl text-left text-sm text-slate-500 font-medium border border-slate-100 shadow-sm">Halaman Manajemen Lowongan Kerja (Loker)</div>;
+                return <div className="p-8 bg-white rounded-2xl text-left text-sm text-slate-500 font-medium border border-slate-200 shadow-sm">Halaman Manajemen Lowongan Kerja (Loker)</div>;
 
               case 'interviews':
-                return <div className="p-8 bg-white rounded-2xl text-left text-sm text-slate-500 font-medium border border-slate-100 shadow-sm">Halaman Jadwal Wawancara Kandidat</div>;
+                return <div className="p-8 bg-white rounded-2xl text-left text-sm text-slate-500 font-medium border border-slate-200 shadow-sm">Halaman Jadwal Wawancara Kandidat</div>;
 
               case 'admin-accounts':
                 return <AdminAccounts />;
