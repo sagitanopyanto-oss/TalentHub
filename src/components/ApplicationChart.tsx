@@ -18,7 +18,8 @@ function DetailPopup({ title, data, columns, onClose }: {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
         <div className="overflow-y-auto flex-1">
-          <table className=\"w-full text-left border-collapse\">
+          {/* PERBAIKAN: Tanda kutip escape (\") telah diganti menjadi tanda kutip biasa JSX yang valid */}
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100">
                 {columns.map(col => (
@@ -45,7 +46,7 @@ function DetailPopup({ title, data, columns, onClose }: {
 }
 
 export function ApplicationChart() {
-  // 1. FALLBACK CONTEXT & TIME RANGE UNTUK GRAFIK VISUAL
+  // FALLBACK CONTEXT & TIME RANGE UNTUK GRAFIK VISUAL
   const recruitmentContext = useRecruitment();
   const candidates = recruitmentContext?.candidates || [];
   const jobs = recruitmentContext?.jobs || [];
@@ -58,7 +59,7 @@ export function ApplicationChart() {
   // Mendaftarkan urutan bulan secara statis
   const monthsOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  // 2. PROSES PEMBENTUKAN DATA GRAFIK SECARA AMAN
+  // PROSES PEMBENTUKAN DATA GRAFIK SECARA AMAN
   const monthlyStats = monthsOrder.map(m => ({
     month: m,
     candidates: 0,
