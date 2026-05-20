@@ -18,19 +18,19 @@ function DetailPopup({ title, data, columns, onClose }: {
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
         <div className="overflow-y-auto flex-1">
-          <table className="w-full text-left border-collapse">
+          <table className=\"w-full text-left border-collapse\">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
+              <tr className="bg-slate-50/70 border-b border-slate-100">
                 {columns.map(col => (
-                  <th key={col.key} className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">{col.label}</th>
+                  <th key={col.key} className="px-5 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">{col.label}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm text-slate-600">
+            <tbody className="divide-y divide-slate-100">
               {data.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                <tr key={idx} className="hover:bg-slate-50/40 transition-colors">
                   {columns.map(col => (
-                    <td key={col.key} className="px-6 py-3.5">
+                    <td key={col.key} className="px-5 py-3.5 text-xs font-semibold text-slate-700">
                       {col.format ? col.format(row[col.key]) : row[col.key]}
                     </td>
                   ))}
@@ -44,338 +44,102 @@ function DetailPopup({ title, data, columns, onClose }: {
   );
 }
 
-// HELPER KELOLA RENTANG WAKTU (Digunakan bersama oleh Grafik 1 & Grafik 3)
-function generateTimeSlots(timeframe: 'monthly' | '6months' | 'yearly', monthNames: string[], currentYear: number) {
-  let slots: { key: string; label: string }[] = [];
-  if (timeframe === 'monthly') {
-    const d = new Date();
-    slots = [{
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: `Bulan Ini (${monthNames[d.getMonth()]})`
-    }];
-  } else if (timeframe === '6months') {
-    slots = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - (5 - i));
-      return {
-        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        label: `${monthNames[d.getMonth()]} ${String(d.getFullYear()).substring(2)}`
-      };
-    });
-  } else if (timeframe === 'yearly') {
-    slots = Array.from({ length: 3 }, (_, i) => {
-      const year = currentYear - (2 - i);
-      return { key: `${year}`, label: `Tahun ${year}` };
-    });
-  }
-  return slots;
-}
-
-// 1. GRAFIK TREN LAMARAN BULANAN (DENGAN FILTER JANGKA WAKTU)
 export function ApplicationChart() {
-  const { candidates } = useRecruitment();
-  const [timeframe, setTimeframe] = useState<'monthly' | '6months' | 'yearly'>('6months');
-  const [popup, setPopup] = useState<any | null>(null);
+  // 1. FALLBACK CONTEXT & TIME RANGE UNTUK GRAFIK VISUAL
+  const recruitmentContext = useRecruitment();
+  const candidates = recruitmentContext?.candidates || [];
+  const jobs = recruitmentContext?.jobs || [];
+  
+  // Jika selectedTimeRange tidak terdefinisi di Context, otomatis gunakan 'all'
+  const timeRange = recruitmentContext?.selectedTimeRange || 'all';
 
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const currentYear = new Date().getFullYear();
+  const [popup, setPopup] = useState<{ month: string; cost: number; allDeptsBreakdown: Record<string, number> } | null>(null);
 
-  const timeSlots = generateTimeSlots(timeframe, monthNames, currentYear);
+  // Mendaftarkan urutan bulan secara statis
+  const monthsOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  const chartData = timeSlots.map(slot => {
-    const monthlyCands = candidates.filter(c => c.appliedDate && c.appliedDate.startsWith(slot.key));
-    const applications = monthlyCands.length;
-    const hires = candidates.filter(c => c.stage === 'Hired' && ((c.hiredDate && c.hiredDate.startsWith(slot.key)) || (!c.hiredDate && c.appliedDate && c.appliedDate.startsWith(slot.key)))).length;
-    
-    return { month: slot.label, applications, hires, rawKey: slot.key };
+  // 2. PROSES PEMBENTUKAN DATA GRAFIK SECARA AMAN
+  const monthlyStats = monthsOrder.map(m => ({
+    month: m,
+    candidates: 0,
+    cost: 0,
+    budget: 50000000, // Rp 50.000.000 default budget limit
+    deptsBreakdown: {} as Record<string, number>
+  }));
+
+  // Memasukkan data kandidat pelamar ke bagan bulanan grafik
+  candidates.forEach(c => {
+    if (!c.appliedDate) return;
+    const date = new Date(c.appliedDate);
+    const monthIndex = date.getMonth();
+    if (monthIndex >= 0 && monthIndex < 12) {
+      monthlyStats[monthIndex].candidates += 1;
+    }
   });
 
-  const handleBarClick = (data: any) => {
-    if (!data || !data.activePayload || data.activePayload.length === 0) return;
-    const activeItem = data.activePayload[0].payload;
-    
-    const filteredCands = candidates.filter(c => c.appliedDate && c.appliedDate.startsWith(activeItem.rawKey));
-    setPopup({
-      month: activeItem.month,
-      candidates: filteredCands.map(c => ({
-        name: c.name,
-        position: c.position,
-        stage: c.stage,
-        date: c.appliedDate
-      }))
-    });
+  // Memasukkan akumulasi biaya rekrutmen lowongan kerja per bulan
+  jobs.forEach(j => {
+    if (!j.postedDate || !j.cost) return;
+    const date = new Date(j.postedDate);
+    const monthIndex = date.getMonth();
+    const costAmount = typeof j.cost === 'string' ? parseFloat(j.cost) : j.cost;
+
+    if (monthIndex >= 0 && monthIndex < 12) {
+      monthlyStats[monthIndex].cost += costAmount;
+      const dept = j.department || 'Umum';
+      if (!monthlyStats[monthIndex].deptsBreakdown[dept]) {
+        monthlyStats[monthIndex].deptsBreakdown[dept] = 0;
+      }
+      monthlyStats[monthIndex].deptsBreakdown[dept] += costAmount;
+    }
+  });
+
+  const formatRupiahSingkat = (value: number) => {
+    if (value >= 1000000) return `Rp ${(value / 1000000).toFixed(0)}Jt`;
+    if (value >= 1000) return `Rp ${(value / 1000).toFixed(0)}Rb`;
+    return `Rp ${value}`;
   };
 
   return (
-    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h3 className="text-base font-bold text-slate-800">Tren Lamaran & Kelulusan</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Analisis kuantitas masuk berkas pelamar dibanding rasio kelulusan</p>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full text-left">
+      {/* GRAFIK 1: JUMLAH TREN PELAMAR MASUK (BAR CHART) */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[380px]">
+        <div className="mb-4">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Statistik Rekrutmen</h3>
+          <h4 className="text-sm font-black text-slate-800 tracking-tight mt-0.5">Tren Volume Pelamar Kerja Masuk</h4>
         </div>
-        
-        {/* Kontrol Filter Waktu */}
-        <div className="flex p-1 bg-slate-100 rounded-xl self-start sm:self-center">
-          {(['monthly', '6months', 'yearly'] as const).map((type) => (
-            <button 
-              key={type}
-              onClick={() => setTimeframe(type)} 
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${timeframe === type ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              {type === 'monthly' ? 'Bulan Ini' : type === '6months' ? '6 Bulan' : 'Tahunan'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} onClick={handleBarClick} className="cursor-pointer">
+          <BarChart data={monthlyStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} allowDecimals={false} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
             <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
-            <Legend />
-            <Bar dataKey="applications" name="Total Pelamar" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={24} />
-            <Bar dataKey="hires" name="Kandidat Diterima (Hired)" fill="#10b981" radius={[6, 6, 0, 0]} barSize={24} />
+            <Bar dataKey="candidates" name="Jumlah Pelamar" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={32} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {popup && (
-        <DetailPopup
-          title={`Daftar Pelamar Periode: ${popup.month}`}
-          data={popup.candidates}
-          columns={[
-            { key: 'name', label: 'Nama Pelamar' },
-            { key: 'position', label: 'Posisi Lowongan' },
-            { key: 'stage', label: 'Status Tahap' },
-            { key: 'date', label: 'Tanggal Melamar' }
-          ]}
-          onClose={() => setPopup(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// 2. GRAFIK DISTRIBUSI PER DEPARTEMEN (DENGAN FILTER JANGKA WAKTU)
-export function DepartmentChart() {
-  const { jobs, candidates } = useRecruitment();
-  const [timeframe, setTimeframe] = useState<'monthly' | '6months' | 'yearly'>('6months');
-  const [popup, setPopup] = useState<any | null>(null);
-
-  const distinctDepartments = Array.from(new Set(jobs.map(j => j.department).filter(Boolean)));
-  const departmentsToRender = distinctDepartments.length > 0 ? distinctDepartments : ['Lainnya'];
-
-  // Batasi kalkulasi kandidat masuk departemen berdasarkan rentang waktu terpilih
-  const chartData = departmentsToRender.map(dept => {
-    const totalApplicantsInDept = candidates.filter(c => {
-      if (!c.appliedDate) return false;
-
-      // Filter waktu dinamis
-      const d = new Date();
-      const currentYearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      
-      if (timeframe === 'monthly' && !c.appliedDate.startsWith(currentYearMonth)) return false;
-      if (timeframe === '6months') {
-        const monthsRange = Array.from({ length: 6 }, (_, i) => {
-          const checkDate = new Date();
-          checkDate.setMonth(checkDate.getMonth() - (5 - i));
-          return `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}`;
-        });
-        if (!monthsRange.some(m => c.appliedDate.startsWith(m))) return false;
-      }
-      if (timeframe === 'yearly' && !c.appliedDate.startsWith(String(d.getFullYear()))) return false;
-
-      let candidateDept = c.department;
-      if (!candidateDept && c.position) {
-        const matchedJob = jobs.find(j => j.title?.toLowerCase().trim() === c.position?.toLowerCase().trim());
-        if (matchedJob) candidateDept = matchedJob.department;
-      }
-      return (candidateDept || 'Lainnya') === dept;
-    });
-
-    const hires = totalApplicantsInDept.filter(c => c.stage === 'Hired').length;
-    const openings = jobs.filter(j => j.department === dept && j.status === 'Active').length;
-    
-    return { name: dept, hires, openings };
-  });
-
-  const handleBarClick = (data: any) => {
-    if (!data || !data.activePayload || data.activePayload.length === 0) return;
-    const activeItem = data.activePayload[0].payload;
-
-    const filteredJobs = jobs.filter(j => j.department === activeItem.name);
-    setPopup({
-      department: activeItem.name,
-      jobs: filteredJobs.map(j => ({
-        title: j.title,
-        status: j.status,
-        applicants: candidates.filter(c => c.position?.toLowerCase().trim() === j.title?.toLowerCase().trim()).length,
-        postedDate: j.postedDate
-      }))
-    });
-  };
-
-  return (
-    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h3 className="text-base font-bold text-slate-800">Distribusi per Departemen</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Komparasi ketersediaan loker aktif vs jumlah pelamar lulus kualifikasi</p>
+      {/* GRAFIK 2: BIAYA OPERASIONAL REKRUTMEN (AREA CHART) */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[380px]">
+        <div className="mb-4">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Efisiensi Finansial</h3>
+          <h4 className="text-sm font-black text-slate-800 tracking-tight mt-0.5">Analisis Biaya Iklan Lowongan Kerja</h4>
         </div>
-        
-        <div className="flex p-1 bg-slate-100 rounded-xl self-start sm:self-center">
-          {(['monthly', '6months', 'yearly'] as const).map((type) => (
-            <button 
-              key={type}
-              onClick={() => setTimeframe(type)} 
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${timeframe === type ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              {type === 'monthly' ? 'Bulan Ini' : type === '6months' ? '6 Bulan' : 'Tahunan'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} onClick={handleBarClick} className="cursor-pointer">
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} allowDecimals={false} />
-            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
-            <Legend />
-            <Bar dataKey="openings" name="Lowongan Aktif" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={20} />
-            <Bar dataKey="hires" name="Total Kelulusan (Hired)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {popup && (
-        <DetailPopup
-          title={`Detail Lowongan Kerja Departemen: ${popup.department}`}
-          data={popup.jobs}
-          columns={[
-            { key: 'title', label: 'Nama Posisi Jabatan' },
-            { key: 'status', label: 'Status Loker' },
-            { key: 'applicants', label: 'Jumlah Pelamar' },
-            { key: 'postedDate', label: 'Tanggal Tayang' }
-          ]}
-          onClose={() => setPopup(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-// 3. GRAFIK OPERASIONAL BIAYA REKRUTMEN (DENGAN FILTER JANGKA WAKTU)
-export function CostHiringChart() {
-  const { candidates, jobs, hiringBudget } = useRecruitment();
-  const [timeframe, setTimeframe] = useState<'monthly' | '6months' | 'yearly'>('6months');
-  const [popup, setPopup] = useState<any | null>(null);
-
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const currentYear = new Date().getFullYear();
-
-  const timeSlots = generateTimeSlots(timeframe, monthNames, currentYear);
-
-  const chartData = timeSlots.map(slot => {
-    const filteredCands = candidates.filter(c => {
-      if (!c.appliedDate) return false;
-      return c.appliedDate.startsWith(slot.key);
-    });
-
-    const totalCandidates = filteredCands.length;
-    const costPerCandidate = 150000;
-    const totalCost = totalCandidates * costPerCandidate;
-    const hiredCount = filteredCands.filter(c => c.stage === 'Hired').length;
-
-    const deptCostMap: Record<string, number> = {};
-    filteredCands.forEach(c => {
-      let dept = c.department;
-      if (!dept && c.position) {
-        const matchedJob = jobs.find(j => j.title?.toLowerCase().trim() === c.position?.toLowerCase().trim());
-        if (matchedJob) dept = matchedJob.department;
-      }
-      dept = dept || 'Lainnya';
-      deptCostMap[dept] = (deptCostMap[dept] || 0) + costPerCandidate;
-    });
-
-    let topDepartment = 'Tidak Ada Data';
-    let maxDeptCost = 0;
-    Object.entries(deptCostMap).forEach(([dept, cost]) => {
-      if (cost > maxDeptCost) {
-        maxDeptCost = cost;
-        topDepartment = dept;
-      }
-    });
-
-    return {
-      month: slot.label,
-      cost: totalCost,
-      budget: timeframe === 'yearly' ? (hiringBudget || 50000000) * 12 : (hiringBudget || 50000000),
-      candidatesCount: totalCandidates,
-      hiredCount: hiredCount,
-      topDeptName: topDepartment,
-      topDeptCost: maxDeptCost,
-      allDeptsBreakdown: deptCostMap
-    };
-  });
-
-  const formatRupiahSingkat = (value: any) => {
-    if (Number(value) >= 1000000) {
-      return `Rp ${(Number(value) / 1000000).toFixed(1)}jt`;
-    }
-    return `Rp ${Number(value).toLocaleString('id-ID')}`;
-  };
-
-  const handleAreaClick = (data: any) => {
-    if (!data || !data.activePayload || data.activePayload.length === 0) return;
-    const activeItem = data.activePayload[0].payload;
-    setPopup(activeItem);
-  };
-
-  return (
-    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h3 className="text-base font-bold text-slate-800">Analisis Biaya Rekrutmen Finansial</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Monitoring operasional anggaran rekrutmen aktual vs limit finansial</p>
-        </div>
-        
-        <div className="flex p-1 bg-slate-100 rounded-xl self-start sm:self-center">
-          {(['monthly', '6months', 'yearly'] as const).map((type) => (
-            <button 
-              key={type}
-              onClick={() => setTimeframe(type)} 
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${timeframe === type ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-            >
-              {type === 'monthly' ? 'Bulan Ini' : type === '6months' ? '6 Bulan' : 'Tahunan'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mb-4 p-4 bg-amber-50/60 border border-amber-100 rounded-2xl flex flex-col gap-1">
-        <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">💡 Ringkasan Deteksi Pengeluaran:</span>
-        <p className="text-sm text-slate-600">
-          Pada rentang yang dipilih, alokasi biaya tertinggi dominan diserap oleh Departemen: <strong className="text-indigo-700">{chartData[chartData.length - 1]?.topDeptName}</strong> dengan estimasi penyerapan dana senilai <strong className="text-slate-800">Rp {chartData[chartData.length - 1]?.topDeptCost.toLocaleString('id-ID')}</strong>.
-        </p>
-      </div>
-
-      <div className="h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} onClick={handleAreaClick} className="cursor-pointer">
+          <AreaChart data={monthlyStats} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} onClick={(data) => {
+            if (data && data.activePayload && data.activePayload[0]) {
+              const payload = data.activePayload[0].payload;
+              setPopup({ month: payload.month, cost: payload.cost, allDeptsBreakdown: payload.deptsBreakdown });
+            }
+          }}>
             <defs>
               <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
               </linearGradient>
               <linearGradient id="colorBudget" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.05}/>
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -389,6 +153,7 @@ export function CostHiringChart() {
         </ResponsiveContainer>
       </div>
 
+      {/* POPUP DETAIL MODAL JIKA AREA CHART DIKLIK */}
       {popup && (
         <DetailPopup
           title={`Detail Biaya Periode: ${popup.month}`}
@@ -399,8 +164,8 @@ export function CostHiringChart() {
           }))}
           columns={[
             { key: 'department', label: 'Nama Departemen Pekerjaan' },
-            { key: 'costAmount', label: 'Pengeluaran Aktual', format: (v) => `Rp ${v.toLocaleString('id-ID')}` },
-            { key: 'percentage', label: 'Kontribusi Alokasi (%)' }
+            { key: 'costAmount', label: 'Pengeluaran Iklan', format: (v) => `Rp ${v.toLocaleString('id-ID')}` },
+            { key: 'percentage', label: 'Kontribusi Porsi (%)' }
           ]}
           onClose={() => setPopup(null)}
         />
