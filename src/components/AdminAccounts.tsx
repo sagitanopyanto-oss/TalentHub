@@ -10,12 +10,16 @@ export function AdminAccounts() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'admin' | 'recruiter'>('recruiter');
+  // Default role disesuaikan pilihan baru
+  const [role, setRole] = useState<'admin' | 'recruiter' | 'super admin'>('recruiter');
 
   const handleCreateAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     if (addAdmin) {
+      // Mengirimkan data dengan format role yang Anda minta
       addAdmin({ username, password, email, role });
+      
+      // Reset form setelah sukses menambahkan
       setUsername('');
       setPassword('');
       setEmail('');
@@ -25,13 +29,13 @@ export function AdminAccounts() {
   };
 
   const getRoleBadge = (role: string) => {
-    switch (role?.toLowerCase()) {
-      case 'superadmin':
-        return 'bg-red-50 text-red-700 border-red-200 font-extrabold';
-      case 'admin':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200 font-bold';
-      default:
-        return 'bg-slate-100 text-slate-700 border-slate-200 font-bold';
+    const normalized = role?.toLowerCase();
+    if (normalized === 'superadmin' || normalized === 'super admin') {
+      return 'bg-red-50 text-red-700 border-red-200 font-extrabold';
+    } else if (normalized === 'admin') {
+      return 'bg-indigo-50 text-indigo-700 border-indigo-200 font-bold';
+    } else {
+      return 'bg-slate-100 text-slate-700 border-slate-200 font-bold';
     }
   };
 
@@ -70,9 +74,10 @@ export function AdminAccounts() {
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Role Akses</label>
-              <select value={role} onChange={(e) => setRole(e.target.value as 'admin' | 'recruiter')} className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 font-medium focus:outline-none">
-                <option value="recruiter">Recruiter</option>
-                <option value="admin">Admin</option>
+              <select value={role} onChange={(e) => setRole(e.target.value as 'admin' | 'recruiter' | 'super admin')} className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 font-medium focus:outline-none">
+                <option value="recruiter">recruiter</option>
+                <option value="admin">admin</option>
+                <option value="super admin">super admin</option>
               </select>
             </div>
             <button type="submit" className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition-colors h-[34px] cursor-pointer">
@@ -97,7 +102,7 @@ export function AdminAccounts() {
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700 text-xs">
               {admins && admins.map((account, index) => {
-                const isSuperAdminUser = account.role?.toLowerCase() === 'superadmin';
+                const isSuperAdminUser = account.role?.toLowerCase() === 'superadmin' || account.role?.toLowerCase() === 'super admin';
                 const isActive = account.status === 'Active';
 
                 return (
