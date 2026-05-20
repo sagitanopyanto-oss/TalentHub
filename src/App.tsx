@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRecruitment } from './context/RecruitmentContext';
-import { LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 import { Sidebar } from './components/Sidebar';
 import { StatsCards } from './components/StatsCards';
-import { SettingsTab } from './components/SettingsTab';
 import { ApplicationChart } from './components/ApplicationChart';
 import { NotificationDropdown } from './components/NotificationDropdown';
 import { PipelineChart } from './components/PipelineChart';
@@ -13,7 +12,6 @@ export function App() {
   const { currentAdmin, login, logout, candidates = [], jobs = [] } = useRecruitment();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   
-  // State form login
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -40,7 +38,7 @@ export function App() {
             <span className="text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl capitalize">
               {currentAdmin.username} | <span className="text-indigo-600 uppercase font-extrabold text-[9px]">{currentAdmin.role}</span>
             </span>
-            <button onClick={() => logout && logout()} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg border border-red-100 transition-colors">
+            <button onClick={() => logout && logout()} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg border border-red-100 transition-colors cursor-pointer">
               <LogOut size={13} />
             </button>
           </div>
@@ -49,7 +47,6 @@ export function App() {
     </header>
   );
 
-  // LOGIC LOGIN YANG LENGKAP
   if (!currentAdmin) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
@@ -78,7 +75,6 @@ export function App() {
               <ApplicationChart />
               <PipelineChart />
               
-              {/* Daftar Kandidat Terbaru */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Daftar Kandidat Terbaru</h3>
                 <div className="overflow-x-auto">
