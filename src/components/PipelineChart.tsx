@@ -54,7 +54,7 @@ export function PipelineChart() {
         </div>
       </div>
 
-      {/* Popup tetap dipertahankan agar fungsi detail tetap berjalan */}
+      {/* Popup Detail */}
       {popup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setPopup(null)}>
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
