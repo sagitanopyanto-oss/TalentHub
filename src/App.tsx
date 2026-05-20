@@ -332,7 +332,7 @@ export function App() {
               case 'jobs': return <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-xs">Halaman Manajemen Lowongan Kerja (Loker)</div>;
               case 'interviews': return <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-xs">Halaman Jadwal Wawancara Kandidat</div>;
               
-              /* PERBAIKAN PROTEKSI AKSES: Hanya role selain 'admin' dan 'recruiter' (misal: super-admin / owner) yang bisa membuka Manajemen Admin */
+              /* KUNCI MUTLAK: Role 'admin' dan 'recruiter' diblokir total dari halaman Manajemen Akun Admin */
               case 'admin-accounts':
                 if (currentAdmin?.role === 'admin' || currentAdmin?.role === 'recruiter') {
                   return (
@@ -342,7 +342,7 @@ export function App() {
                       </div>
                       <h3 className="text-lg font-bold text-slate-800">Akses Ditolak</h3>
                       <p className="text-xs text-slate-500 leading-relaxed">
-                        Maaf, akun Anda dengan tingkat akses <span className="font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">{currentAdmin.role}</span> tidak diizinkan untuk melihat, mengubah, atau mengelola modul Manajemen Akun Admin. Silakan hubungi <strong>Super Admin</strong> jika ini merupakan sebuah kesalahan.
+                        Maaf, akun Anda dengan tingkat akses <span className="font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">{currentAdmin.role}</span> tidak memiliki wewenang untuk membuka atau mengelola fitur <strong>Manajemen Admin</strong>.
                       </p>
                     </div>
                   );
