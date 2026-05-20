@@ -22,7 +22,7 @@ export function PipelineChart() {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
         <h3 className="text-lg font-bold text-slate-800 mb-6">PIPELINE REKRUTMEN: DISTRIBUSI PELAMAR</h3>
         
-        {/* STRUKTUR TABEL */}
+        {/* STRUKTUR TABEL - MENGGANTIKAN FUNNEL */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
