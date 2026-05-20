@@ -7,20 +7,14 @@ export function PipelineChart() {
   const { candidates, slaConfig } = useRecruitment();
   const [popup, setPopup] = useState<{ stage: string; items: Candidate[] } | null>(null);
 
-  // Kalkulasi data untuk tabel
+  // Kalkulasi data dari SLA Config & Kandidat
   const pipelineData = slaConfig.map((config) => {
     const stageCandidates = candidates.filter(c => c.stage === config.stage);
     const compliant = stageCandidates.filter(c => c.slaStatus === 'On-Track').length;
     const violation = stageCandidates.filter(c => c.slaStatus === 'Delayed').length;
     const rate = stageCandidates.length > 0 ? Math.round((compliant / stageCandidates.length) * 100) : 0;
 
-    return {
-      ...config,
-      total: stageCandidates.length,
-      compliant,
-      violation,
-      rate
-    };
+    return { ...config, total: stageCandidates.length, compliant, violation, rate };
   });
 
   return (
@@ -28,6 +22,7 @@ export function PipelineChart() {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
         <h3 className="text-lg font-bold text-slate-800 mb-6">PIPELINE REKRUTMEN: DISTRIBUSI PELAMAR</h3>
         
+        {/* STRUKTUR TABEL */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
