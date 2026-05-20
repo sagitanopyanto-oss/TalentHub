@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRecruitment } from './context/RecruitmentContext';
-import { LogIn, Info, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Info, ShieldAlert, LogOut } from 'lucide-react';
 
 // Import komponen-komponen utama dashboard
 import { Sidebar } from './components/Sidebar';
@@ -10,8 +10,6 @@ import { AdminAccounts } from './components/AdminAccounts';
 
 export function App() {
   const { currentAdmin, login, logout, candidates, jobs, interviews } = useRecruitment();
-  
-  // Set halaman awal default ke 'portal-links' (Portal Lowongan Kerja Publik)
   const [activeTab, setActiveTab] = useState<string>('portal-links');
   
   // State form login lokal
@@ -19,7 +17,7 @@ export function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // State untuk menyimpan konfigurasi SLA secara dinamis dari menu Setting
+  // State target SLA
   const [targetSla, setTargetSla] = useState({
     applied: 3,
     screening: 5,
@@ -29,17 +27,15 @@ export function App() {
     medical: 5
   });
 
-  // State untuk melacak baris mana yang sedang memunculkan pop-up info detail
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
-  // FUNGSI UTAMA: Membaca data SLA dari localStorage secara menyeluruh
   const loadSlaSettings = () => {
-    const savedApplied = localStorage.getItem('sla_target_applied') || localStorage.getItem('sla_applied') || localStorage.getItem('applied');
-    const savedScreening = localStorage.getItem('sla_target_screening') || localStorage.getItem('sla_screening') || localStorage.getItem('screening');
-    const savedInterview = localStorage.getItem('sla_target_interview') || localStorage.getItem('sla_interview') || localStorage.getItem('interview');
-    const savedAssessment = localStorage.getItem('sla_target_assessment') || localStorage.getItem('sla_assessment') || localStorage.getItem('assessment');
-    const savedOffer = localStorage.getItem('sla_target_offer') || localStorage.getItem('sla_offer') || localStorage.getItem('offer');
-    const savedMedical = localStorage.getItem('sla_target_medical') || localStorage.getItem('sla_medical') || localStorage.getItem('medical');
+    const savedApplied = localStorage.getItem('sla_target_applied') || localStorage.getItem('sla_applied');
+    const savedScreening = localStorage.getItem('sla_target_screening') || localStorage.getItem('sla_screening');
+    const savedInterview = localStorage.getItem('sla_target_interview') || localStorage.getItem('sla_interview');
+    const savedAssessment = localStorage.getItem('sla_target_assessment') || localStorage.getItem('sla_assessment');
+    const savedOffer = localStorage.getItem('sla_target_offer') || localStorage.getItem('sla_offer');
+    const savedMedical = localStorage.getItem('sla_target_medical') || localStorage.getItem('sla_medical');
 
     setTargetSla({
       applied: savedApplied ? parseInt(savedApplied, 10) : 3,
@@ -51,7 +47,6 @@ export function App() {
     });
   };
 
-  // RE-ACTIVE LISTENER: Sinkronisasi instan lintas komponen dan tab
   useEffect(() => {
     loadSlaSettings();
     window.addEventListener('storage', loadSlaSettings);
@@ -63,7 +58,6 @@ export function App() {
     };
   }, [activeTab]);
 
-  // SINKRONISASI MASUK: Jika sukses login, langsung alihkan ke dashboard internal
   useEffect(() => {
     if (currentAdmin) {
       setActiveTab('dashboard');
@@ -91,12 +85,10 @@ export function App() {
     setActiveTab('portal-links');
   };
 
-  // ATURAN BISNIS MUTLAK
   const MAKSIMAL_SLA_GLOBAL = 28;
   const hitungAverageTimeToHire = "-"; 
   const hitungSlaCompliance = "0%";
 
-  // Struktur 6 Tahap Utama Seleksi Rekrutmen
   const slaStagesData = [
     { id: 'applied', name: 'Applied', target: targetSla.applied, color: 'bg-indigo-600', kandidat: 0, compliant: 0, violation: 0, rate: '-' },
     { id: 'screening', name: 'Screening', target: targetSla.screening, color: 'bg-purple-500', kandidat: 0, compliant: 0, violation: 0, rate: '-' },
@@ -117,16 +109,17 @@ export function App() {
           <Sidebar 
             activeTab={activeTab} 
             onTabChange={(tabId) => setActiveTab(tabId)}
-            onLogout={handleAbsoluteLogout}
+            currentRole={currentAdmin?.role}
+            currentUsername={currentAdmin?.username}
           />
         </div>
       )}
 
-      {/* AREA UTAMA CONTROLLER */}
+      {/* AREA UTAMA CONTROLLER (SCROLLABLE AREA) */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
         <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto pb-32">
           
-          {/* HEADER PANEL */}
+          {/* HEADER PANEL UTAMA */}
           <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6 text-left">
             <div>
               <div className="flex items-center gap-2">
@@ -142,25 +135,38 @@ export function App() {
               </p>
             </div>
 
+            {/* BARIS KANAN ATAS HEADER (AKSI LOGIN / LOGOUT) */}
             <div className="flex items-center gap-3">
               {!currentAdmin ? (
                 activeTab === 'portal-links' ? (
                   <button
                     onClick={() => setActiveTab('login')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:text-slate-900 font-bold rounded-xl text-xs border border-slate-200 hover:border-slate-300 shadow-sm transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:text-slate-900 font-bold rounded-xl text-xs border border-slate-200 hover:border-slate-300 shadow-sm transition-all cursor-pointer"
                   >
-                    <span>Login</span>
+                    <span>Login Admin</span>
                   </button>
                 ) : (
-                  <button onClick={() => setActiveTab('portal-links')} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800">
+                  <button onClick={() => setActiveTab('portal-links')} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer">
                     ← Kembali ke Portal
                   </button>
                 )
               ) : (
+                /* LETAK BARU LOGOUT: Pojok Kanan Atas Untuk Semua Role Admin */
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-slate-600 bg-slate-200/60 px-3 py-1.5 rounded-full border border-slate-200 uppercase tracking-wider">
-                    Akses: {currentAdmin.role}
-                  </span>
+                  <div className="hidden sm:flex flex-col text-right">
+                    <span className="text-xs font-bold text-slate-800">{currentAdmin.username}</span>
+                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Akses: {currentAdmin.role}</span>
+                  </div>
+                  
+                  <div className="h-7 w-[1px] bg-slate-200 hidden sm:block"></div>
+                  
+                  <button
+                    onClick={handleAbsoluteLogout}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/60 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                  >
+                    <LogOut size={14} />
+                    <span>Keluar</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -212,7 +218,6 @@ export function App() {
                   <div className="w-full space-y-8 block text-left clear-both">
                     <StatsCards key={`stats-${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
                     
-                    {/* AREA 4 GRAFIK UTUH */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                         <h4 className="text-sm font-bold text-slate-700 mb-4">📈 Trend Aplikasi & Rekrutmen</h4>
@@ -232,7 +237,6 @@ export function App() {
                       </div>
                     </div>
 
-                    {/* PANEL MONITORING UTAMA SLA */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
                       <div className="border-b border-slate-100 pb-3">
                         <h3 className="font-bold text-slate-800 text-base">⏱️ Pemantauan SLA & Rata-rata Time to Hire</h3>
@@ -253,7 +257,6 @@ export function App() {
                         </div>
                       </div>
 
-                      {/* Tabel Detail SLA */}
                       <div className="mt-4 overflow-visible relative">
                         <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Detail SLA per Tahap:</h4>
                         <div className="overflow-x-auto border border-slate-100 rounded-xl">
@@ -332,24 +335,24 @@ export function App() {
               case 'jobs': return <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-xs">Halaman Manajemen Lowongan Kerja (Loker)</div>;
               case 'interviews': return <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-xs">Halaman Jadwal Wawancara Kandidat</div>;
               
-              /* KUNCI MUTLAK: Role 'admin' dan 'recruiter' diblokir total dari halaman Manajemen Akun Admin */
+              // Proteksi Lapis Kedua (Routing Block Bypass)
               case 'admin-accounts':
+              case 'settings':
                 if (currentAdmin?.role === 'admin' || currentAdmin?.role === 'recruiter') {
                   return (
                     <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-center py-16 max-w-2xl mx-auto space-y-4">
                       <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto border border-red-100">
                         <ShieldAlert size={32} />
                       </div>
-                      <h3 className="text-lg font-bold text-slate-800">Akses Ditolak</h3>
+                      <h3 className="text-lg font-bold text-slate-800">Akses Terkunci</h3>
                       <p className="text-xs text-slate-500 leading-relaxed">
-                        Maaf, akun Anda dengan tingkat akses <span className="font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">{currentAdmin.role}</span> tidak memiliki wewenang untuk membuka atau mengelola fitur <strong>Manajemen Admin</strong>.
+                        Maaf, akun Anda dengan tingkat akses <span className="font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">{currentAdmin.role}</span> tidak diizinkan mengakses halaman ini.
                       </p>
                     </div>
                   );
                 }
-                return <AdminAccounts />;
+                return activeTab === 'admin-accounts' ? <AdminAccounts /> : <SettingsTab />;
 
-              case 'settings': return <SettingsTab />;
               default: return <div className="p-8 bg-white rounded-2xl text-slate-500 text-xs">Halaman tidak ditemukan.</div>;
             }
           })()}
