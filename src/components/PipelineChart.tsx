@@ -1,104 +1,79 @@
 import { useState } from 'react';
-import { X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useRecruitment } from '../context/RecruitmentContext';
 import { Candidate } from '../data/mockData';
+import { X } from 'lucide-react';
 
 export function PipelineChart() {
   const { candidates, slaConfig } = useRecruitment();
   const [popup, setPopup] = useState<{ stage: string; items: Candidate[] } | null>(null);
 
-  // Kalkulasi data per tahap berdasarkan SLA Config
-  // Jika candidates masih kosong, maka total, compliant, violation akan bernilai 0
-  const pipelineData = slaConfig.map((config) => {
-    const stageCandidates = candidates.filter(c => c.stage === config.stage);
-    const compliant = stageCandidates.filter(c => c.slaStatus === 'On-Track').length;
-    const violation = stageCandidates.filter(c => c.slaStatus === 'Delayed').length;
-    const rate = stageCandidates.length > 0 ? Math.round((compliant / stageCandidates.length) * 100) : 0;
+  // Menyinkronkan data pipeline dengan SLA Config dari context
+  const pipelineData = slaConfig.map((config) => ({
+    ...config,
+    value: candidates.filter(c => c.stage === config.stage).length
+  }));
 
-    return {
-      ...config,
-      total: stageCandidates.length,
-      compliant,
-      violation,
-      rate
-    };
-  });
+  const total = candidates.filter(c => c.stage !== 'Rejected').length;
+  const maxValue = Math.max(...pipelineData.map(d => d.value), 1);
 
   return (
     <>
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-800 mb-6">PIPELINE REKRUTMEN: DISTRIBUSI PELAMAR PER TAHAPAN AKTIF</h3>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="text-slate-400 text-xs uppercase border-b border-slate-100">
-                <th className="pb-4 px-2">Tahap/Proses</th>
-                <th className="pb-4 px-2">Target SLA</th>
-                <th className="pb-4 px-2 text-center">Kandidat</th>
-                <th className="pb-4 px-2 text-center">Compliant</th>
-                <th className="pb-4 px-2 text-center">Violation</th>
-                <th className="pb-4 px-2">Compliance Rate</th>
-                <th className="pb-4 px-2">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {pipelineData.map((row) => (
-                <tr 
-                  key={row.stage} 
-                  className="group hover:bg-slate-50 transition-colors cursor-pointer"
-                  onClick={() => setPopup({ stage: row.stage, items: candidates.filter(c => c.stage === row.stage) })}
-                >
-                  <td className="py-4 px-2 font-bold flex items-center gap-2 text-sm text-slate-700">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }} />
-                    {row.stage}
-                  </td>
-                  <td className="py-4 px-2 text-slate-600 text-sm">{row.slaDays} hari</td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700">{row.total}</td>
-                  <td className="py-4 px-2 text-center font-bold text-emerald-600">{row.compliant}</td>
-                  <td className="py-4 px-2 text-center font-bold text-red-600">{row.violation}</td>
-                  <td className="py-4 px-2 text-sm text-slate-500 w-32">
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1">
-                      <div className="bg-slate-300 h-1.5 rounded-full" style={{ width: `${row.rate}%` }} />
-                    </div>
-                    {row.rate}%
-                  </td>
-                  <td className="py-4 px-2">
-                    {row.violation > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100 uppercase">
-                        <AlertTriangle size={10} /> Violation
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 uppercase">
-                        <CheckCircle size={10} /> Compliant
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">Pipeline Rekrutmen</h3>
+            <p className="text-sm text-slate-500 mt-1">Distribusi kandidat & Target SLA</p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-black text-slate-800">{total}</p>
+            <p className="text-[10px] uppercase font-bold text-slate-400">Total Aktif</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {pipelineData.map((item) => (
+            <div 
+              key={item.stage} 
+              className="group cursor-pointer"
+              onClick={() => setPopup({ stage: item.stage, items: candidates.filter(c => c.stage === item.stage) })}
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }}></span>
+                  <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800 transition-colors">
+                    {item.stage} <span className="text-[10px] text-slate-400 ml-1">({item.slaDays} hari)</span>
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-slate-700">{item.value} Kandidat</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700 ease-out group-hover:opacity-90"
+                  style={{
+                    width: `${(item.value / maxValue) * 100}%`,
+                    backgroundColor: item.color,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Pop-up Detail Pipeline */}
+      {/* Pop-up Detail */}
       {popup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setPopup(null)}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-slate-800">Detail Tahap: {popup.stage}</h3>
+              <h3 className="font-bold text-slate-800">Detail: {popup.stage}</h3>
               <button onClick={() => setPopup(null)}><X size={20} className="text-slate-400" /></button>
             </div>
-            <div className="text-sm text-slate-600">
-              {popup.items.length > 0 ? (
-                <ul className="list-disc pl-4 space-y-1">
-                  {popup.items.map(item => <li key={item.id}>{item.name}</li>)}
-                </ul>
-              ) : (
-                <p>Belum ada data transaksi pada tahapan ini.</p>
-              )}
-            </div>
-            <button className="mt-6 w-full bg-slate-800 text-white py-2 rounded-xl font-bold" onClick={() => setPopup(null)}>Tutup</button>
+            <p className="text-sm text-slate-500 mb-4">
+              {popup.items.length > 0 ? `Terdapat ${popup.items.length} kandidat dalam proses ini.` : "Belum ada kandidat di tahap ini."}
+            </p>
+            {popup.items.map(c => (
+              <div key={c.id} className="py-2 border-b text-sm font-medium">{c.name}</div>
+            ))}
           </div>
         </div>
       )}
