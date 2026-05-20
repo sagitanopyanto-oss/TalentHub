@@ -49,33 +49,43 @@ export function ApplicationChart() {
   const [chartRange, setChartRange] = useState<'this-month' | '6-months' | 'yearly'>('6-months');
   const [popup, setPopup] = useState<{ month: string; cost: number; allDeptsBreakdown: Record<string, number> } | null>(null);
 
-  // Logika Filter Tanggal
+  // Logika Filter Rentang Waktu yang presisi
   const isDateInRange = (date: Date) => {
     const now = new Date();
     if (chartRange === 'this-month') {
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }
     if (chartRange === '6-months') {
-      const d = new Date();
-      d.setMonth(now.getMonth() - 6);
-      return date >= d;
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(now.getMonth() - 6);
+      return date >= sixMonthsAgo;
     }
-    return date.getFullYear() === now.getFullYear();
+    return date.getFullYear() === now.getFullYear(); // Yearly
   };
 
   const monthsOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthlyStats = monthsOrder.map(m => ({ month: m, candidates: 0, hired: 0, cost: 0, budget: 50000000, deptsBreakdown: {} as Record<string, number> }));
+  const monthlyStats = monthsOrder.map(m => ({ 
+    month: m, 
+    candidates: 0, 
+    hired: 0, 
+    cost: 0, 
+    budget: 50000000, 
+    deptsBreakdown: {} as Record<string, number> 
+  }));
 
-  // Hitung Data
+  // Hitung data pelamar dan hired berdasarkan filter range
   candidates.forEach(c => {
     if (c.appliedDate && isDateInRange(new Date(c.appliedDate))) {
-      monthlyStats[new Date(c.appliedDate).getMonth()].candidates += 1;
+      const idx = new Date(c.appliedDate).getMonth();
+      monthlyStats[idx].candidates += 1;
     }
     if (c.stage === 'Hired' && c.hiredDate && isDateInRange(new Date(c.hiredDate))) {
-      monthlyStats[new Date(c.hiredDate).getMonth()].hired += 1;
+      const idx = new Date(c.hiredDate).getMonth();
+      monthlyStats[idx].hired += 1;
     }
   });
 
+  // Hitung data biaya
   jobs.forEach(j => {
     if (j.postedDate && isDateInRange(new Date(j.postedDate))) {
       const idx = new Date(j.postedDate).getMonth();
@@ -88,17 +98,17 @@ export function ApplicationChart() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full text-left">
-      {/* Statistik Rekrutmen */}
+      {/* Statistik Rekrutmen dengan Filter */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[380px]">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Statistik Rekrutmen</h3>
-            <h4 className="text-sm font-black text-slate-800 mt-0.5">Volume Pelamar vs Hired</h4>
+            <h4 className="text-sm font-black text-slate-800 mt-0.5">Tren Pelamar vs Hired</h4>
           </div>
           <select 
             value={chartRange}
             onChange={(e) => setChartRange(e.target.value as any)}
-            className="bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-600 px-3 py-1.5 rounded-lg focus:outline-none cursor-pointer"
+            className="bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-600 px-3 py-1.5 rounded-lg focus:outline-none cursor-pointer hover:bg-slate-100"
           >
             <option value="this-month">Bulan Ini</option>
             <option value="6-months">6 Bulan Terakhir</option>
@@ -110,8 +120,8 @@ export function ApplicationChart() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-            <Tooltip />
-            <Legend verticalAlign="top" height={36} />
+            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+            <Legend verticalAlign="top" height={36} iconType="circle" />
             <Bar dataKey="candidates" name="Pelamar Masuk" fill="#4f46e5" radius={[4, 4, 0, 0]} />
             <Bar dataKey="hired" name="Kandidat Hired" fill="#10b981" radius={[4, 4, 0, 0]} />
           </BarChart>
@@ -127,9 +137,9 @@ export function ApplicationChart() {
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={monthlyStats} onClick={(e: any) => e?.activePayload && setPopup({ month: e.activePayload[0].payload.month, cost: e.activePayload[0].payload.cost, allDeptsBreakdown: e.activePayload[0].payload.deptsBreakdown })}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="month" axisLine={false} tickLine={false} />
-            <YAxis axisLine={false} tickLine={false} />
-            <Tooltip />
+            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+            <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
             <Area type="monotone" dataKey="cost" name="Biaya (Rp)" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
           </AreaChart>
         </ResponsiveContainer>
@@ -138,8 +148,8 @@ export function ApplicationChart() {
       {popup && (
         <DetailPopup
           title={`Detail Biaya Periode: ${popup.month}`}
-          data={Object.entries(popup.allDeptsBreakdown).map(([k, v]) => ({ dept: k, val: v }))}
-          columns={[{ key: 'dept', label: 'Dept' }, { key: 'val', label: 'Biaya', format: (v) => `Rp ${v.toLocaleString()}` }]}
+          data={Object.entries(popup.allDeptsBreakdown).map(([dept, cost]) => ({ dept, cost }))}
+          columns={[{ key: 'dept', label: 'Departemen' }, { key: 'cost', label: 'Biaya', format: (v) => `Rp ${v.toLocaleString()}` }]}
           onClose={() => setPopup(null)}
         />
       )}
