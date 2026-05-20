@@ -12,7 +12,7 @@ import { HistoryTab } from './components/HistoryTab';
 import { NotificationDropdown } from './components/NotificationDropdown';
 
 export function App() {
-  const { currentAdmin, login, logout, candidates, jobs, interviews } = useRecruitment();
+  const { currentAdmin, login, logout } = useRecruitment();
   const [activeTab, setActiveTab] = useState<string>('portal-links');
   
   // State form login lokal
@@ -71,7 +71,7 @@ export function App() {
     }
   };
 
-  // 1. JIKA MEMBUKA PORTAL LOWONGAN ('portal-links'): Render halaman penuh tanpa Sidebar maupun Header menggantung
+  // 1. TAMPILAN PORTAL LOWONGAN (portal-links): Fullscreen tanpa Sidebar & Tanpa Header Gantung
   if (activeTab === 'portal-links') {
     return (
       <div className="min-h-screen bg-slate-50 p-6 font-sans text-left flex flex-col items-center justify-center space-y-6">
@@ -89,7 +89,6 @@ export function App() {
             </button>
           </div>
           
-          {/* Konten Utama Link Lowongan Anda */}
           <div className="text-sm text-slate-500 py-12 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
             <p className="font-bold text-slate-700">Konten Tampilan Portal Utama Manajemen Link Lowongan</p>
             <p className="text-xs text-slate-400 mt-1">Daftar lowongan aktif eksternal akan dimuat di sini</p>
@@ -99,7 +98,7 @@ export function App() {
     );
   }
 
-  // 2. JIKA MEMBUKA PANEL INTERNAL DAN BELUM LOGIN: Tampilkan Layar Login Terproteksi Penuh
+  // 2. TAMPILAN LOGIN: Jika membuka area admin tapi session admin belum aktif
   if (!currentAdmin) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-left">
@@ -130,10 +129,9 @@ export function App() {
     );
   }
 
-  // 3. JIKA SUDAH LOGIN & BERADA DI DASHBOARD INTERNAL ADMIN
+  // 3. TAMPILAN DASHBOARD INTERNAL WORKSPACE (SETELAH LOGIN ADMIN BERHASIL)
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans">
-      {/* Samping Kiri: Menu Navigasi Utama */}
       <Sidebar 
         activeTab={activeTab} 
         onTabChange={(tabId) => setActiveTab(tabId)}
@@ -141,10 +139,9 @@ export function App() {
         currentUsername={currentAdmin.username}
       />
 
-      {/* Samping Kanan: Konten Utama */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
-        {/* HEADER TOPBAR KANAN ATAS */}
+        {/* HEADER TOPBAR KANAN ATAS (Lonceng Notifikasi Diletakkan di Sini) */}
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0 text-left">
           <div>
             <h1 className="text-base font-extrabold text-slate-800 capitalize tracking-tight">
@@ -182,8 +179,9 @@ export function App() {
               case 'dashboard':
                 return (
                   <div className="space-y-6">
-                    {/* RESTORASI SINKRONISASI GRAFIK ASLI ANDA (Menggunakan state langsung) 📊 */}
-                    <StatsCards candidates={candidates} jobs={jobs} interviews={interviews} />
+                    {/* MEMANGGIL STATSCARDS TANPA PROPS AGAR KODE MEMBACA CONTEXT SECARA TOTAL SEPERTI ASLINYA 📊 */}
+                    <StatsCards />
+                    
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                       <h3 className="text-sm font-bold text-slate-800 mb-2">Selamat Datang Kembali, {currentAdmin.username}!</h3>
                       <p className="text-xs text-slate-500 leading-relaxed">
@@ -198,7 +196,7 @@ export function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                     <h3 className="text-sm font-bold text-slate-800 mb-2">Modul Manajemen Kandidat</h3>
                     <p className="text-xs text-slate-400 mb-4">Daftar pelamar yang masuk ke sistem TalentHub</p>
-                    <div className="text-xs text-slate-500 italic">Konten Data Pelamar Kerja ({candidates?.length || 0} Kandidat Terdaftar)...</div>
+                    <div className="text-xs text-slate-500 italic">Konten Data Pelamar Kerja Terdaftar...</div>
                   </div>
                 );
 
@@ -207,7 +205,7 @@ export function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                     <h3 className="text-sm font-bold text-slate-800 mb-2">Modul Manajemen Lowongan</h3>
                     <p className="text-xs text-slate-400 mb-4">Daftar lowongan pekerjaan aktif internal perusahaan</p>
-                    <div className="text-xs text-slate-500 italic">Konten Data Informasi Lowongan Pekerjaan ({jobs?.length || 0} Lowongan Aktif)...</div>
+                    <div className="text-xs text-slate-500 italic">Konten Data Informasi Lowongan Pekerjaan Aktif...</div>
                   </div>
                 );
 
@@ -216,7 +214,7 @@ export function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                     <h3 className="text-sm font-bold text-slate-800 mb-2">Jadwal Wawancara</h3>
                     <p className="text-xs text-slate-400 mb-4">Kalender agenda interview bersama user dan tim HR</p>
-                    <div className="text-xs text-slate-500 italic">Konten Agenda Wawancara ({interviews?.length || 0} Agenda Terjadwal)...</div>
+                    <div className="text-xs text-slate-500 italic">Konten Agenda Wawancara Terjadwal...</div>
                   </div>
                 );
 
