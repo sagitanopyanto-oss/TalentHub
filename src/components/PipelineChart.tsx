@@ -8,6 +8,7 @@ export function PipelineChart() {
   const [popup, setPopup] = useState<{ stage: string; items: Candidate[] } | null>(null);
 
   // Kalkulasi data per tahap berdasarkan SLA Config
+  // Jika candidates masih kosong, maka total, compliant, violation akan bernilai 0
   const pipelineData = slaConfig.map((config) => {
     const stageCandidates = candidates.filter(c => c.stage === config.stage);
     const compliant = stageCandidates.filter(c => c.slaStatus === 'On-Track').length;
@@ -26,7 +27,7 @@ export function PipelineChart() {
   return (
     <>
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-800 mb-6">DETAIL SLA PER TAHAP:</h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-6">PIPELINE REKRUTMEN: DISTRIBUSI PELAMAR PER TAHAPAN AKTIF</h3>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
