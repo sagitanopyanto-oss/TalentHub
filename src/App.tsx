@@ -8,12 +8,15 @@ import { StatsCards } from './components/StatsCards';
 import { SettingsTab } from './components/SettingsTab';
 import { AdminAccounts } from './components/AdminAccounts';
 import { HistoryTab } from './components/HistoryTab';
-// 1. IMPORT DROPDOWN NOTIFIKASI DI BAGIAN ATAS FILE APP
+// Impor Dropdown Notifikasi Lonceng
 import { NotificationDropdown } from './components/NotificationDropdown';
 
 export function App() {
+  // Mengembalikan seluruh variabel data asli (candidates, jobs, interviews) dari Context Anda
   const { currentAdmin, login, logout, candidates, jobs, interviews } = useRecruitment();
-  const [activeTab, setActiveTab] = useState<string>('dashboard'); // Diubah default ke dashboard agar langsung terbuka panel utama
+  
+  // Mengembalikan default activeTab ke 'portal-links' sesuai file asli Anda
+  const [activeTab, setActiveTab] = useState<string>('portal-links');
   
   // State form login lokal
   const [usernameInput, setUsernameInput] = useState('');
@@ -66,11 +69,13 @@ export function App() {
         setLoginError('');
         setUsernameInput('');
         setPasswordInput('');
+        // Setelah berhasil login, otomatis arahkan ke dashboard utama agar grafik langsung terlihat
+        setActiveTab('dashboard');
       }
     }
   };
 
-  // Tampilan layar login jika admin belum mengonfirmasi kredensial
+  // Tampilan layar login jika session admin belum aktif
   if (!currentAdmin) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-left">
@@ -98,7 +103,6 @@ export function App() {
     );
   }
 
-  // TAMPILAN SISTEM UTAMA DASHBOARD JIKA LOGIN BERHASIL
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans">
       {/* Samping Kiri: Menu Navigasi Utama */}
@@ -109,10 +113,10 @@ export function App() {
         currentUsername={currentAdmin.username}
       />
 
-      {/* Samping Kanan: Konten Utama & Pembuatan Header Atas */}
+      {/* Samping Kanan: Konten Utama */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
-        {/* ─── 🛎️ HEADER BARU BAGIAN ATAS UNTUK LONCENG NOTIFIKASI KANAN ATAS ─── */}
+        {/* HEADER TOPBAR KANAN ATAS (Lonceng Notifikasi Tetap Berada di Sini) */}
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0 text-left">
           <div>
             <h1 className="text-base font-extrabold text-slate-800 capitalize tracking-tight">
@@ -121,21 +125,17 @@ export function App() {
             <p className="text-[10px] text-slate-400 font-medium mt-0.5">Sistem Manajemen Pengelolaan TalentHub HRIS</p>
           </div>
 
-          {/* SISI KANAN ATAS: TOMBOL LONCENG & INFO IDENTITAS LOGIN */}
           <div className="flex items-center gap-4">
-            {/* PEMANGGILAN KOMPONEN DROPDOWN LONCENG NOTIFIKASI */}
+            {/* PANEL NOTIFIKASI LONCENG MELAYANG 🛎️ */}
             <NotificationDropdown />
             
-            {/* Garis Pembatas Vertikal Pipih */}
             <div className="w-px h-5 bg-slate-200"></div>
             
-            {/* Info Nama Pengguna Login Aktif */}
             <div className="flex items-center gap-3">
               <span className="text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl capitalize">
                 {currentAdmin.username} <span className="text-slate-400 font-normal mx-1">|</span> <span className="text-indigo-600 uppercase font-extrabold text-[9px] tracking-wider">{currentAdmin.role}</span>
               </span>
               
-              {/* Tombol Logout Cepat */}
               <button 
                 onClick={() => logout && logout()}
                 title="Keluar dari Aplikasi"
@@ -154,6 +154,7 @@ export function App() {
               case 'dashboard':
                 return (
                   <div className="space-y-6">
+                    {/* Mengirimkan kembali parameter targetSla untuk mengaktifkan grafik utama Anda 📊 */}
                     <StatsCards targetSla={targetSla} />
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                       <h3 className="text-sm font-bold text-slate-800 mb-2">Selamat Datang Kembali, {currentAdmin.username}!</h3>
@@ -169,7 +170,7 @@ export function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                     <h3 className="text-sm font-bold text-slate-800 mb-2">Modul Manajemen Kandidat</h3>
                     <p className="text-xs text-slate-400 mb-4">Daftar pelamar yang masuk ke sistem TalentHub</p>
-                    <div className="text-xs text-slate-500 italic">Konten Data Pelamar Kerja (Kandidat)...</div>
+                    <div className="text-xs text-slate-500 italic">Konten Data Pelamar Kerja ({candidates?.length || 0} Kandidat Terdaftar)...</div>
                   </div>
                 );
 
@@ -178,7 +179,7 @@ export function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                     <h3 className="text-sm font-bold text-slate-800 mb-2">Modul Manajemen Lowongan</h3>
                     <p className="text-xs text-slate-400 mb-4">Daftar lowongan pekerjaan aktif internal perusahaan</p>
-                    <div className="text-xs text-slate-500 italic">Konten Data Informasi Lowongan Pekerjaan...</div>
+                    <div className="text-xs text-slate-500 italic">Konten Data Informasi Lowongan Pekerjaan ({jobs?.length || 0} Lowongan Aktif)...</div>
                   </div>
                 );
 
@@ -187,14 +188,13 @@ export function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                     <h3 className="text-sm font-bold text-slate-800 mb-2">Jadwal Wawancara</h3>
                     <p className="text-xs text-slate-400 mb-4">Kalender agenda interview bersama user dan tim HR</p>
-                    <div className="text-xs text-slate-500 italic">Konten Agenda Wawancara Kandidat...</div>
+                    <div className="text-xs text-slate-500 italic">Konten Agenda Wawancara ({interviews?.length || 0} Agenda Terjadwal)...</div>
                   </div>
                 );
 
               case 'history':
                 return <HistoryTab />;
 
-              // Manajemen Proteksi Hak Akses Halaman Tingkat Admin/Recruiter
               case 'admin-accounts':
               case 'settings':
                 if (currentAdmin?.role === 'admin' || currentAdmin?.role === 'recruiter') {
@@ -215,8 +215,7 @@ export function App() {
               default: 
                 return <div className="p-8 bg-white rounded-2xl text-slate-500 text-xs text-left">Halaman tidak ditemukan.</div>;
             }
-          })()
-          }
+          })()}
         </main>
       </div>
     </div>
