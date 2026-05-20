@@ -13,7 +13,6 @@ import { NotificationDropdown } from './components/NotificationDropdown';
 
 export function App() {
   const { currentAdmin, login, logout, candidates, jobs, interviews } = useRecruitment();
-  // 1. Mengembalikan default activeTab ke 'portal-links' sesuai file asli Anda
   const [activeTab, setActiveTab] = useState<string>('portal-links');
   
   // State form login lokal
@@ -67,13 +66,41 @@ export function App() {
         setLoginError('');
         setUsernameInput('');
         setPasswordInput('');
-        setActiveTab('dashboard'); // Otomatis ke dashboard setelah login sukses
+        setActiveTab('dashboard');
       }
     }
   };
 
-  // 2. MODIFIKASI FORM LOGIN: Hanya muncul jika tab yang dipilih BUKAN portal lowongan dan belum login
-  if (!currentAdmin && activeTab !== 'portal-links') {
+  // 1. JIKA MEMBUKA PORTAL LOWONGAN ('portal-links'): Render halaman penuh tanpa Sidebar maupun Header menggantung
+  if (activeTab === 'portal-links') {
+    return (
+      <div className="min-h-screen bg-slate-50 p-6 font-sans text-left flex flex-col items-center justify-center space-y-6">
+        <div className="w-full max-w-4xl bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-6">
+            <div>
+              <h3 className="text-lg font-black text-slate-800">Portal Lowongan Kerja</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Halaman utama informasi karir dan link eksternal TalentHub</p>
+            </div>
+            <button 
+              onClick={() => setActiveTab('dashboard')} 
+              className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-xl transition-colors cursor-pointer"
+            >
+              Login Workspace Admin
+            </button>
+          </div>
+          
+          {/* Konten Utama Link Lowongan Anda */}
+          <div className="text-sm text-slate-500 py-12 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+            <p className="font-bold text-slate-700">Konten Tampilan Portal Utama Manajemen Link Lowongan</p>
+            <p className="text-xs text-slate-400 mt-1">Daftar lowongan aktif eksternal akan dimuat di sini</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. JIKA MEMBUKA PANEL INTERNAL DAN BELUM LOGIN: Tampilkan Layar Login Terproteksi Penuh
+  if (!currentAdmin) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-left">
         <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-200 shadow-2xl space-y-6">
@@ -96,21 +123,22 @@ export function App() {
             <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors shadow-lg shadow-indigo-600/10 cursor-pointer">Masuk Sistem</button>
           </form>
           <div className="text-center pt-2">
-            <button onClick={() => setActiveTab('portal-links')} className="text-xs text-indigo-600 hover:underline font-bold cursor-pointer">Kembali ke Portal Lowongan</button>
+            <button onClick={() => setActiveTab('portal-links')} className="text-xs text-slate-400 hover:text-indigo-600 font-bold cursor-pointer transition-colors">← Kembali ke Portal Lowongan</button>
           </div>
         </div>
       </div>
     );
   }
 
+  // 3. JIKA SUDAH LOGIN & BERADA DI DASHBOARD INTERNAL ADMIN
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans">
       {/* Samping Kiri: Menu Navigasi Utama */}
       <Sidebar 
         activeTab={activeTab} 
         onTabChange={(tabId) => setActiveTab(tabId)}
-        currentRole={currentAdmin?.role}
-        currentUsername={currentAdmin?.username}
+        currentRole={currentAdmin.role}
+        currentUsername={currentAdmin.username}
       />
 
       {/* Samping Kanan: Konten Utama */}
@@ -132,23 +160,17 @@ export function App() {
             <div className="w-px h-5 bg-slate-200"></div>
             
             <div className="flex items-center gap-3">
-              {currentAdmin ? (
-                <span className="text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl capitalize">
-                  {currentAdmin.username} <span className="text-slate-400 font-normal mx-1">|</span> <span className="text-indigo-600 uppercase font-extrabold text-[9px] tracking-wider">{currentAdmin.role}</span>
-                </span>
-              ) : (
-                <button onClick={() => setActiveTab('dashboard')} className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-xl transition-colors cursor-pointer">Login Admin</button>
-              )}
+              <span className="text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl capitalize">
+                {currentAdmin.username} <span className="text-slate-400 font-normal mx-1">|</span> <span className="text-indigo-600 uppercase font-extrabold text-[9px] tracking-wider">{currentAdmin.role}</span>
+              </span>
               
-              {currentAdmin && (
-                <button 
-                  onClick={() => logout && logout()}
-                  title="Keluar dari Aplikasi"
-                  className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg border border-red-100 transition-colors cursor-pointer"
-                >
-                  <LogOut size={13} />
-                </button>
-              )}
+              <button 
+                onClick={() => logout && logout()}
+                title="Keluar dari Aplikasi"
+                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg border border-red-100 transition-colors cursor-pointer"
+              >
+                <LogOut size={13} />
+              </button>
             </div>
           </div>
         </header>
@@ -157,24 +179,15 @@ export function App() {
         <main className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
           {(() => {
             switch (activeTab) {
-              case 'portal-links':
-                return (
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
-                    <h3 className="text-sm font-bold text-slate-800 mb-2">Portal Lowongan Kerja</h3>
-                    <p className="text-xs text-slate-400 mb-4">Halaman utama informasi karir dan link eksternal TalentHub</p>
-                    <div className="text-xs text-slate-500 italic">Konten Tampilan Portal Utama Manajemen Link Lowongan...</div>
-                  </div>
-                );
-
               case 'dashboard':
                 return (
                   <div className="space-y-6">
-                    {/* 3. MENYESUAIKAN PARAMETER UTAMA AGAR GRAFIK MUNCUL KEMBALI 📊 */}
+                    {/* RESTORASI SINKRONISASI GRAFIK ASLI ANDA (Menggunakan state langsung) 📊 */}
                     <StatsCards candidates={candidates} jobs={jobs} interviews={interviews} />
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
-                      <h3 className="text-sm font-bold text-slate-800 mb-2">Selamat Datang Kembali, {currentAdmin?.username}!</h3>
+                      <h3 className="text-sm font-bold text-slate-800 mb-2">Selamat Datang Kembali, {currentAdmin.username}!</h3>
                       <p className="text-xs text-slate-500 leading-relaxed">
-                        Anda masuk sebagai <span className="font-bold uppercase text-indigo-600 bg-indigo-50 px-1.5 py-0.5 border border-indigo-100 rounded text-[10px]">{currentAdmin?.role}</span>. Semua modul pelacakan status kandidat rekrutmen siap dikelola.
+                        Anda masuk sebagai <span className="font-bold uppercase text-indigo-600 bg-indigo-50 px-1.5 py-0.5 border border-indigo-100 rounded text-[10px]">{currentAdmin.role}</span>. Semua modul pelacakan status kandidat rekrutmen siap dikelola.
                       </p>
                     </div>
                   </div>
