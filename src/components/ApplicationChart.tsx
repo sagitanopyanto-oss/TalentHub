@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { X } from 'lucide-react';
 import { useRecruitment } from '../context/RecruitmentContext';
 
-// POPUP DETAIL GLOBAL UNTUK SEMUA GRAFIK
+// Fungsi Pop-up Detail
 function DetailPopup({ title, data, columns, onClose }: {
   title: string;
   data: Record<string, any>[];
@@ -45,144 +45,101 @@ function DetailPopup({ title, data, columns, onClose }: {
 }
 
 export function ApplicationChart() {
-  const recruitmentContext = useRecruitment();
-  const candidates = recruitmentContext?.candidates || [];
-  const jobs = recruitmentContext?.jobs || [];
-  const timeRange = recruitmentContext?.selectedTimeRange || 'all';
-
+  const { candidates, jobs } = useRecruitment();
+  const [chartRange, setChartRange] = useState<'this-month' | '6-months' | 'yearly'>('6-months');
   const [popup, setPopup] = useState<{ month: string; cost: number; allDeptsBreakdown: Record<string, number> } | null>(null);
 
-  // Urutan indeks bulan statis
-  const monthsOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  // STRUKTUR PEMBENTUKAN DATA BULANAN
-  const monthlyStats = monthsOrder.map(m => ({
-    month: m,
-    candidates: 0,   // Total yang mendaftar (Apply)
-    hired: 0,        // Total yang diterima kerja (Hired)
-    cost: 0,
-    budget: 50000000, 
-    deptsBreakdown: {} as Record<string, number>
-  }));
-
-  // MEMPROSES KANDIDAT: Menghitung pendaftaran DAN kelulusan (Hired) per bulan
-  candidates.forEach(c => {
-    // 1. Hitung Tren Pelamar Masuk (Berdasarkan appliedDate)
-    if (c.appliedDate) {
-      const appDate = new Date(c.appliedDate);
-      const appMonthIndex = appDate.getMonth();
-      if (appMonthIndex >= 0 && appMonthIndex < 12) {
-        monthlyStats[appMonthIndex].candidates += 1;
-      }
+  // Logika Filter Tanggal
+  const isDateInRange = (date: Date) => {
+    const now = new Date();
+    if (chartRange === 'this-month') {
+      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }
-
-    // 2. Hitung Tren Pelamar Diterima (Jika statusnya 'Hired', hitung berdasarkan hiredDate atau fallback appliedDate)
-    if (c.stage === 'Hired') {
-      const targetDate = c.hiredDate ? new Date(c.hiredDate) : (c.appliedDate ? new Date(c.appliedDate) : null);
-      if (targetDate) {
-        const hiredMonthIndex = targetDate.getMonth();
-        if (hiredMonthIndex >= 0 && hiredMonthIndex < 12) {
-          monthlyStats[hiredMonthIndex].hired += 1;
-        }
-      }
+    if (chartRange === '6-months') {
+      const d = new Date();
+      d.setMonth(now.getMonth() - 6);
+      return date >= d;
     }
-  });
-
-  // MEMPROSES DATA FINANSIAL BIAYA REKRUTMEN
-  jobs.forEach(j => {
-    if (!j.postedDate || !j.cost) return;
-    const date = new Date(j.postedDate);
-    const monthIndex = date.getMonth();
-    const costAmount = typeof j.cost === 'string' ? parseFloat(j.cost) : j.cost;
-
-    if (monthIndex >= 0 && monthIndex < 12) {
-      monthlyStats[monthIndex].cost += costAmount;
-      const dept = j.department || 'Umum';
-      if (!monthlyStats[monthIndex].deptsBreakdown[dept]) {
-        monthlyStats[monthIndex].deptsBreakdown[dept] = 0;
-      }
-      monthlyStats[monthIndex].deptsBreakdown[dept] += costAmount;
-    }
-  });
-
-  const formatRupiahSingkat = (value: number) => {
-    if (value >= 1000000) return `Rp ${(value / 1000000).toFixed(0)}Jt`;
-    if (value >= 1000) return `Rp ${(value / 1000).toFixed(0)}Rb`;
-    return `Rp ${value}`;
+    return date.getFullYear() === now.getFullYear();
   };
+
+  const monthsOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthlyStats = monthsOrder.map(m => ({ month: m, candidates: 0, hired: 0, cost: 0, budget: 50000000, deptsBreakdown: {} as Record<string, number> }));
+
+  // Hitung Data
+  candidates.forEach(c => {
+    if (c.appliedDate && isDateInRange(new Date(c.appliedDate))) {
+      monthlyStats[new Date(c.appliedDate).getMonth()].candidates += 1;
+    }
+    if (c.stage === 'Hired' && c.hiredDate && isDateInRange(new Date(c.hiredDate))) {
+      monthlyStats[new Date(c.hiredDate).getMonth()].hired += 1;
+    }
+  });
+
+  jobs.forEach(j => {
+    if (j.postedDate && isDateInRange(new Date(j.postedDate))) {
+      const idx = new Date(j.postedDate).getMonth();
+      const cost = typeof j.cost === 'string' ? parseFloat(j.cost) : (j.cost || 0);
+      monthlyStats[idx].cost += cost;
+      const dept = j.department || 'Umum';
+      monthlyStats[idx].deptsBreakdown[dept] = (monthlyStats[idx].deptsBreakdown[dept] || 0) + cost;
+    }
+  });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full text-left">
-      
-      {/* GRAFIK 1: PERBAIKAN SEKARANG MENAMPILKAN DATA PELAMAR & HIRED (DUAL BAR CHART) */}
+      {/* Statistik Rekrutmen */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[380px]">
-        <div className="mb-4">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Statistik Rekrutmen</h3>
-          <h4 className="text-sm font-black text-slate-800 tracking-tight mt-0.5">Tren Volume Pelamar vs Kandidat Hired</h4>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Statistik Rekrutmen</h3>
+            <h4 className="text-sm font-black text-slate-800 mt-0.5">Volume Pelamar vs Hired</h4>
+          </div>
+          <select 
+            value={chartRange}
+            onChange={(e) => setChartRange(e.target.value as any)}
+            className="bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-600 px-3 py-1.5 rounded-lg focus:outline-none cursor-pointer"
+          >
+            <option value="this-month">Bulan Ini</option>
+            <option value="6-months">6 Bulan Terakhir</option>
+            <option value="yearly">Tahunan</option>
+          </select>
         </div>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={monthlyStats} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
             <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
-            <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-            {/* Batang 1: Total Pelamar Masuk */}
-            <Bar dataKey="candidates" name="Jumlah Pelamar Masuk" fill="#4f46e5" radius={[4, 4, 0, 0]} maxBarSize={20} />
-            {/* Batang 2: Kandidat Berhasil Diterima (Hired) */}
-            <Bar dataKey="hired" name="Kandidat Lolos (Hired)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={20} />
+            <Tooltip />
+            <Legend verticalAlign="top" height={36} />
+            <Bar dataKey="candidates" name="Pelamar Masuk" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="hired" name="Kandidat Hired" fill="#10b981" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* GRAFIK 2: ANALISIS BIAYA REKRUTMEN */}
+      {/* Efisiensi Finansial */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[380px]">
         <div className="mb-4">
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Efisiensi Finansial</h3>
-          <h4 className="text-sm font-black text-slate-800 tracking-tight mt-0.5">Analisis Biaya Iklan Lowongan Kerja</h4>
+          <h4 className="text-sm font-black text-slate-800 mt-0.5">Analisis Biaya Iklan</h4>
         </div>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={monthlyStats} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} onClick={(data) => {
-            if (data && data.activePayload && data.activePayload[0]) {
-              const payload = data.activePayload[0].payload;
-              setPopup({ month: payload.month, cost: payload.cost, allDeptsBreakdown: payload.deptsBreakdown });
-            }
-          }}>
-            <defs>
-              <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-              </linearGradient>
-              <linearGradient id="colorBudget" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.05}/>
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
+          <AreaChart data={monthlyStats} onClick={(e: any) => e?.activePayload && setPopup({ month: e.activePayload[0].payload.month, cost: e.activePayload[0].payload.cost, allDeptsBreakdown: e.activePayload[0].payload.deptsBreakdown })}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={formatRupiahSingkat} />
-            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
-            <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
-            <Area type="monotone" dataKey="cost" name="Total Biaya (Rp)" stroke="#10b981" fillOpacity={1} fill="url(#colorCost)" strokeWidth={3} />
-            <Area type="monotone" dataKey="budget" name="Batas Anggaran (Rp)" stroke="#6366f1" fillOpacity={1} fill="url(#colorBudget)" strokeWidth={2} strokeDasharray="5 5" />
+            <XAxis dataKey="month" axisLine={false} tickLine={false} />
+            <YAxis axisLine={false} tickLine={false} />
+            <Tooltip />
+            <Area type="monotone" dataKey="cost" name="Biaya (Rp)" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* POPUP DETAIL MODAL JIKA AREA CHART DIKLIK */}
       {popup && (
         <DetailPopup
           title={`Detail Biaya Periode: ${popup.month}`}
-          data={Object.entries(popup.allDeptsBreakdown).map(([dept, cost]) => ({
-            department: dept,
-            costAmount: cost,
-            percentage: popup.cost > 0 ? ((cost / popup.cost) * 100).toFixed(1) + '%' : '0%'
-          }))}
-          columns={[
-            { key: 'department', label: 'Nama Departemen Pekerjaan' },
-            { key: 'costAmount', label: 'Pengeluaran Iklan', format: (v) => `Rp ${v.toLocaleString('id-ID')}` },
-            { key: 'percentage', label: 'Kontribusi Porsi (%)' }
-          ]}
+          data={Object.entries(popup.allDeptsBreakdown).map(([k, v]) => ({ dept: k, val: v }))}
+          columns={[{ key: 'dept', label: 'Dept' }, { key: 'val', label: 'Biaya', format: (v) => `Rp ${v.toLocaleString()}` }]}
           onClose={() => setPopup(null)}
         />
       )}
