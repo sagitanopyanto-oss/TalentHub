@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRecruitment } from './context/RecruitmentContext';
-import { LogIn, Info, AlertTriangle } from 'lucide-react';
+import { LogIn, Info, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 // Import komponen-komponen utama dashboard
 import { Sidebar } from './components/Sidebar';
@@ -109,10 +109,9 @@ export function App() {
   const showSidebar = !!currentAdmin;
 
   return (
-    /* PERBAIKAN UTAMA: Mengunci tinggi container sebatas layar 'h-screen' agar scroll berpindah ke area main saja */
     <div className="flex h-screen w-full bg-slate-50 font-sans antialiased overflow-hidden">
       
-      {/* SIDEBAR CONTAINER: Diberikan posisi sticky, top-0, dan h-screen agar terkunci diam di kiri */}
+      {/* SIDEBAR CONTAINER */}
       {showSidebar && (
         <div className="sticky top-0 h-screen flex-shrink-0 z-20 shadow-sm border-r border-slate-200 bg-white">
           <Sidebar 
@@ -123,7 +122,7 @@ export function App() {
         </div>
       )}
 
-      {/* AREA UTAMA CONTROLLER (Hanya area ini yang akan bergeser/scroll naik turun) */}
+      {/* AREA UTAMA CONTROLLER */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
         <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto pb-32">
           
@@ -211,7 +210,6 @@ export function App() {
               case 'dashboard':
                 return (
                   <div className="w-full space-y-8 block text-left clear-both">
-                    
                     <StatsCards key={`stats-${candidates?.length || 0}-${jobs?.length || 0}-${interviews?.length || 0}`} />
                     
                     {/* AREA 4 GRAFIK UTUH */}
@@ -333,7 +331,24 @@ export function App() {
               case 'candidates': return <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-xs">Halaman Manajemen Kandidat Pelamar</div>;
               case 'jobs': return <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-xs">Halaman Manajemen Lowongan Kerja (Loker)</div>;
               case 'interviews': return <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-xs">Halaman Jadwal Wawancara Kandidat</div>;
-              case 'admin-accounts': return <AdminAccounts />;
+              
+              /* PERBAIKAN PROTEKSI AKSES: Hanya role selain 'admin' dan 'recruiter' (misal: super-admin / owner) yang bisa membuka Manajemen Admin */
+              case 'admin-accounts':
+                if (currentAdmin?.role === 'admin' || currentAdmin?.role === 'recruiter') {
+                  return (
+                    <div className="p-8 bg-white rounded-2xl border border-slate-200 shadow-sm text-center py-16 max-w-2xl mx-auto space-y-4">
+                      <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto border border-red-100">
+                        <ShieldAlert size={32} />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-800">Akses Ditolak</h3>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Maaf, akun Anda dengan tingkat akses <span className="font-bold uppercase text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">{currentAdmin.role}</span> tidak diizinkan untuk melihat, mengubah, atau mengelola modul Manajemen Akun Admin. Silakan hubungi <strong>Super Admin</strong> jika ini merupakan sebuah kesalahan.
+                      </p>
+                    </div>
+                  );
+                }
+                return <AdminAccounts />;
+
               case 'settings': return <SettingsTab />;
               default: return <div className="p-8 bg-white rounded-2xl text-slate-500 text-xs">Halaman tidak ditemukan.</div>;
             }
