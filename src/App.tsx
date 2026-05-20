@@ -30,8 +30,6 @@ export function App() {
     medical: 5
   });
 
-  const [activePopup, setActivePopup] = useState<string | null>(null);
-
   const loadSlaSettings = () => {
     const savedApplied = localStorage.getItem('sla_target_applied') || localStorage.getItem('sla_applied');
     const savedScreening = localStorage.getItem('sla_target_screening') || localStorage.getItem('sla_screening');
@@ -71,7 +69,7 @@ export function App() {
     }
   };
 
-  // 1. TAMPILAN PORTAL LOWONGAN (portal-links): Fullscreen tanpa Sidebar & Tanpa Header Gantung
+  // 1. JIKA MEMBUKA PORTAL LINK LOWONGAN: Fullscreen bersih total tanpa Sidebar / Topbar gantung
   if (activeTab === 'portal-links') {
     return (
       <div className="min-h-screen bg-slate-50 p-6 font-sans text-left flex flex-col items-center justify-center space-y-6">
@@ -98,7 +96,7 @@ export function App() {
     );
   }
 
-  // 2. TAMPILAN LOGIN: Jika membuka area admin tapi session admin belum aktif
+  // 2. JIKA MEMBUKA PANEL INTERNAL DAN BELUM LOGIN
   if (!currentAdmin) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-left">
@@ -129,7 +127,7 @@ export function App() {
     );
   }
 
-  // 3. TAMPILAN DASHBOARD INTERNAL WORKSPACE (SETELAH LOGIN ADMIN BERHASIL)
+  // 3. JIKA SUDAH LOGIN & MASUK PANEL INTERNAL WORKSPACE
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans">
       <Sidebar 
@@ -141,7 +139,7 @@ export function App() {
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
-        {/* HEADER TOPBAR KANAN ATAS (Lonceng Notifikasi Diletakkan di Sini) */}
+        {/* TOPBAR HEADER KANAN ATAS */}
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0 text-left">
           <div>
             <h1 className="text-base font-extrabold text-slate-800 capitalize tracking-tight">
@@ -151,7 +149,7 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* PANEL NOTIFIKASI LONCENG MELAYANG 🛎️ */}
+            {/* DROPDOWN NOTIFIKASI LONCENG INTERAKTIF 🛎️ */}
             <NotificationDropdown />
             
             <div className="w-px h-5 bg-slate-200"></div>
@@ -172,14 +170,14 @@ export function App() {
           </div>
         </header>
 
-        {/* Isi Menu Halaman Konten Aktif */}
+        {/* MAIN BODY LAYOUT */}
         <main className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
           {(() => {
             switch (activeTab) {
               case 'dashboard':
                 return (
                   <div className="space-y-6">
-                    {/* MEMANGGIL STATSCARDS TANPA PROPS AGAR KODE MEMBACA CONTEXT SECARA TOTAL SEPERTI ASLINYA 📊 */}
+                    {/* Render modul StatsCards secara murni */}
                     <StatsCards />
                     
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
