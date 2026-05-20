@@ -7,7 +7,7 @@ export function PipelineChart() {
   const { candidates, slaConfig } = useRecruitment();
   const [popup, setPopup] = useState<{ stage: string; items: Candidate[] } | null>(null);
 
-  // Kalkulasi data dari SLA Config & Kandidat
+  // Kalkulasi data per tahap
   const pipelineData = slaConfig.map((config) => {
     const stageCandidates = candidates.filter(c => c.stage === config.stage);
     const compliant = stageCandidates.filter(c => c.slaStatus === 'On-Track').length;
@@ -20,13 +20,13 @@ export function PipelineChart() {
   return (
     <>
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-800 mb-6">PIPELINE REKRUTMEN: DISTRIBUSI PELAMAR</h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-6 uppercase tracking-wider">Pipeline Rekrutmen: Distribusi Pelamar</h3>
         
-        {/* STRUKTUR TABEL - MENGGANTIKAN FUNNEL */}
+        {/* TABEL MENGGANTIKAN FUNNEL */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="text-slate-400 text-xs uppercase border-b border-slate-100">
+              <tr className="text-slate-400 text-[11px] uppercase border-b border-slate-100">
                 <th className="pb-4 px-2">Tahap/Proses</th>
                 <th className="pb-4 px-2">Target SLA</th>
                 <th className="pb-4 px-2 text-center">Kandidat</th>
@@ -40,10 +40,10 @@ export function PipelineChart() {
               {pipelineData.map((row) => (
                 <tr 
                   key={row.stage} 
-                  className="group hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="hover:bg-slate-50 transition-colors cursor-pointer"
                   onClick={() => setPopup({ stage: row.stage, items: candidates.filter(c => c.stage === row.stage) })}
                 >
-                  <td className="py-4 px-2 font-bold flex items-center gap-2 text-sm text-slate-700">
+                  <td className="py-4 px-2 font-bold text-sm text-slate-700 flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }} />
                     {row.stage}
                   </td>
@@ -80,13 +80,13 @@ export function PipelineChart() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setPopup(null)}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-slate-800">Detail Tahap: {popup.stage}</h3>
+              <h3 className="font-bold text-slate-800">Detail: {popup.stage}</h3>
               <button onClick={() => setPopup(null)}><X size={20} className="text-slate-400" /></button>
             </div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 mb-4">
               {popup.items.length > 0 ? `Terdapat ${popup.items.length} kandidat.` : "Belum ada data transaksi pada tahapan ini."}
             </p>
-            <button className="mt-6 w-full bg-slate-800 text-white py-2 rounded-xl font-bold" onClick={() => setPopup(null)}>Tutup</button>
+            <button className="w-full bg-slate-800 text-white py-2 rounded-xl font-bold" onClick={() => setPopup(null)}>Tutup</button>
           </div>
         </div>
       )}
