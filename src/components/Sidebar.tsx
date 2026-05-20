@@ -17,7 +17,6 @@ interface SidebarProps {
 
 export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }: SidebarProps) {
 
-  // Daftar menu utama aplikasi
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: <LayoutDashboard size={16} /> },
     { id: 'candidates', name: 'Manajemen Kandidat', icon: <Users size={16} /> },
@@ -27,10 +26,13 @@ export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }
     { id: 'settings', name: 'Pengaturan Sistem', icon: <Settings size={16} /> },
   ];
 
-  // LOGIKA HIDDEN MUTLAK: Menyembunyikan "Manajemen Admin" & "Pengaturan Sistem" untuk role admin & recruiter
+  // NORMALISASI STRING: Ubah role ke huruf kecil untuk menghindari bug typo/kapitalisasi (e.g. "Recruiter" vs "recruiter")
+  const normalizedRole = (currentRole || '').trim().toLowerCase();
+
+  // LOGIKA PENYARINGAN EKSTREMED: Menghilangkan menu secara instan jika terdeteksi 'admin' atau 'recruiter'
   const filteredMenuItems = menuItems.filter(item => {
     if (item.id === 'admin-accounts' || item.id === 'settings') {
-      return currentRole !== 'admin' && currentRole !== 'recruiter';
+      return normalizedRole !== 'admin' && normalizedRole !== 'recruiter';
     }
     return true;
   });
@@ -49,7 +51,7 @@ export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }
           </div>
         </div>
 
-        {/* Menu Navigasi Berdasarkan Hasil Filter */}
+        {/* Menu Navigasi Nav Bar */}
         <nav className="space-y-1">
           {filteredMenuItems.map((item) => {
             const isActive = activeTab === item.id;
@@ -71,7 +73,7 @@ export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }
         </nav>
       </div>
 
-      {/* Informasi Ringkas Pengguna di Sisi Bawah Sidebar */}
+      {/* Informasi Ringkas Pengguna */}
       <div className="pt-4 border-t border-slate-800 mb-2">
         <div className="px-3 py-2 bg-slate-800/40 border border-slate-800 rounded-xl">
           <p className="text-xs font-bold text-slate-200 truncate">{currentUsername || 'User Admin'}</p>
