@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useRecruitment } from '../context/RecruitmentContext';
 import { Candidate } from '../data/mockData';
 
@@ -7,19 +7,19 @@ export function PipelineChart() {
   const { candidates, slaConfig } = useRecruitment();
   const [popup, setPopup] = useState<{ stage: string; items: Candidate[] } | null>(null);
 
-  // LOGIKA PENGHITUNGAN DATA SLA
-  // Menggabungkan setiap tahap dari slaConfig dengan data kandidat yang ada
+  // Kalkulasi data untuk tabel berdasarkan konfigurasi SLA dan data kandidat
   const pipelineData = slaConfig.map((config) => {
     const stageCandidates = candidates.filter(c => c.stage === config.stage);
     const compliant = stageCandidates.filter(c => c.slaStatus === 'On-Track').length;
     const violation = stageCandidates.filter(c => c.slaStatus === 'Delayed').length;
-    
+    const rate = stageCandidates.length > 0 ? Math.round((compliant / stageCandidates.length) * 100) : 0;
+
     return {
       ...config,
       total: stageCandidates.length,
       compliant,
       violation,
-      rate: stageCandidates.length > 0 ? (compliant / stageCandidates.length) * 100 : 0
+      rate
     };
   });
 
@@ -32,13 +32,13 @@ export function PipelineChart() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="text-slate-400 text-xs uppercase border-b border-slate-100">
-                <th className="pb-4 px-2">TAHAP</th>
-                <th className="pb-4 px-2">TARGET SLA</th>
-                <th className="pb-4 px-2">KANDIDAT</th>
-                <th className="pb-4 px-2">COMPLIANT</th>
-                <th className="pb-4 px-2">VIOLATION</th>
-                <th className="pb-4 px-2">COMPLIANCE RATE</th>
-                <th className="pb-4 px-2">STATUS</th>
+                <th className="pb-4 px-2">Tahap</th>
+                <th className="pb-4 px-2">Target SLA</th>
+                <th className="pb-4 px-2 text-center">Kandidat</th>
+                <th className="pb-4 px-2 text-center">Compliant</th>
+                <th className="pb-4 px-2 text-center">Violation</th>
+                <th className="pb-4 px-2">Compliance Rate</th>
+                <th className="pb-4 px-2">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -53,9 +53,9 @@ export function PipelineChart() {
                     {row.stage}
                   </td>
                   <td className="py-4 px-2 text-slate-600 text-sm">{row.slaDays} hari</td>
-                  <td className="py-4 px-2 font-bold text-slate-700">{row.total}</td>
-                  <td className="py-4 px-2 font-bold text-emerald-600">{row.compliant}</td>
-                  <td className="py-4 px-2 font-bold text-red-600">{row.violation}</td>
+                  <td className="py-4 px-2 text-center font-bold text-slate-700">{row.total}</td>
+                  <td className="py-4 px-2 text-center font-bold text-emerald-600">{row.compliant}</td>
+                  <td className="py-4 px-2 text-center font-bold text-red-600">{row.violation}</td>
                   <td className="py-4 px-2 text-sm text-slate-500 w-32">
                     <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1">
                       <div className="bg-slate-300 h-1.5 rounded-full" style={{ width: `${row.rate}%` }} />
@@ -68,8 +68,8 @@ export function PipelineChart() {
                         <AlertTriangle size={10} /> Violation
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 uppercase">
-                        Compliant
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 uppercase">
+                        <CheckCircle size={10} /> Compliant
                       </span>
                     )}
                   </td>
@@ -80,7 +80,7 @@ export function PipelineChart() {
         </div>
       </div>
 
-      {/* POPUP DETAIL */}
+      {/* Popup Detail Pipeline */}
       {popup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" onClick={() => setPopup(null)}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl p-6" onClick={e => e.stopPropagation()}>
@@ -89,7 +89,7 @@ export function PipelineChart() {
               <button onClick={() => setPopup(null)}><X size={20} className="text-slate-400" /></button>
             </div>
             <p className="text-sm text-slate-500">
-              {popup.items.length > 0 ? `Terdapat ${popup.items.length} kandidat.` : "Belum ada data transaksi pada tahapan ini."}
+              {popup.items.length > 0 ? `Terdapat ${popup.items.length} kandidat dalam tahap ini.` : "Belum ada data transaksi pada tahapan ini."}
             </p>
           </div>
         </div>
