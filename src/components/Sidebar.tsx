@@ -8,6 +8,8 @@ import {
   Settings,
   History 
 } from 'lucide-react';
+// 1. IMPORT KOMPONEN DROPDOWN NOTIFIKASI YANG KITA BUAT DI STEP 1
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface SidebarProps {
   activeTab: string;
@@ -23,7 +25,6 @@ export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }
     { id: 'candidates', name: 'Manajemen Kandidat', icon: <Users size={16} /> },
     { id: 'jobs', name: 'Manajemen Lowongan', icon: <Briefcase size={16} /> },
     { id: 'interviews', name: 'Jadwal Interview', icon: <Calendar size={16} /> },
-    /* Menu baru diletakkan di sini agar bisa diakses oleh semua role */
     { id: 'history', name: 'Riwayat Aktivitas', icon: <History size={16} /> },
     { id: 'admin-accounts', name: 'Manajemen Admin', icon: <UserCheck size={16} /> },
     { id: 'settings', name: 'Pengaturan Sistem', icon: <Settings size={16} /> },
@@ -71,7 +72,19 @@ export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }
         </nav>
       </div>
 
-      <div className="pt-4 border-t border-slate-800 mb-2">
+      {/* FOOTER SIDEBAR: INFO AKUN & PANEL NOTIFIKASI LONCENG */}
+      <div className="pt-4 border-t border-slate-800 mb-2 space-y-2">
+        
+        {/* WADAH NOTIFIKASI BARU (Diletakkan agar posisinya melayang ke atas dengan rapi) */}
+        <div className="flex items-center justify-between px-3 py-1 bg-slate-800/20 rounded-xl border border-transparent">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Notifikasi Sistem</span>
+          {/* PEMANGGILAN DROPDOWN NOTIFIKASI 🛎️ */}
+          <div className="relative text-slate-400 hover:text-slate-200">
+            <NotificationDropdown />
+          </div>
+        </div>
+
+        {/* PROFILE CARD */}
         <div className="px-3 py-2 bg-slate-800/40 border border-slate-800 rounded-xl">
           <p className="text-xs font-bold text-slate-200 truncate">{currentUsername || 'User Admin'}</p>
           <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mt-0.5">Role: {currentRole || 'Guest'}</p>
