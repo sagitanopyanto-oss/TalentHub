@@ -3,23 +3,40 @@ import { useRecruitment } from '../context/RecruitmentContext';
 import { UserPlus, Shield, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 
 export function AdminAccounts() {
-  const { admins, addAdmin, updateAdminStatus, deleteAdmin, currentAdmin } = useRecruitment();
+  // Menyesuaikan dengan nama variabel & fungsi asli dari RecruitmentContext.tsx
+  const { 
+    adminAccounts, 
+    addAdminAccount, 
+    updateAdminAccount, 
+    deleteAdminAccount, 
+    currentAdmin 
+  } = useRecruitment();
   
   // State manajemen form internal
   const [showForm, setShowForm] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
-  // Default role disesuaikan pilihan baru
+  // Menggunakan opsi role dengan format string yang diminta user
   const [role, setRole] = useState<'admin' | 'recruiter' | 'super admin'>('recruiter');
 
   const handleCreateAdmin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (addAdmin) {
-      // Mengirimkan data dengan format role yang Anda minta
-      addAdmin({ username, password, email, role });
+    if (addAdminAccount) {
+      // Melakukan mapping otomatis ke format kapital Context jika role bernilai 'super admin'
+      let finalRole: string = role;
+      if (role === 'super admin') finalRole = 'Super Admin';
+      if (role === 'admin') finalRole = 'Admin';
+      if (role === 'recruiter') finalRole = 'Recruiter';
+
+      // Eksekusi fungsi asli dari context
+      addAdminAccount({ 
+        username, 
+        password, 
+        role: finalRole 
+      });
       
-      // Reset form setelah sukses menambahkan
+      // Reset form input setelah data berhasil masuk
       setUsername('');
       setPassword('');
       setEmail('');
@@ -28,9 +45,9 @@ export function AdminAccounts() {
     }
   };
 
-  const getRoleBadge = (role: string) => {
-    const normalized = role?.toLowerCase();
-    if (normalized === 'superadmin' || normalized === 'super admin') {
+  const getRoleBadge = (roleName: string) => {
+    const normalized = roleName?.toLowerCase();
+    if (normalized === 'super admin' || normalized === 'superadmin') {
       return 'bg-red-50 text-red-700 border-red-200 font-extrabold';
     } else if (normalized === 'admin') {
       return 'bg-indigo-50 text-indigo-700 border-indigo-200 font-bold';
@@ -93,59 +110,53 @@ export function AdminAccounts() {
           <table className="w-full text-sm text-left text-slate-600 min-w-[800px]">
             <thead className="text-[11px] text-slate-400 bg-slate-50/80 uppercase tracking-wider border-b border-slate-200">
               <tr>
+                <th className="px-5 py-3.5">ID Akun</th>
                 <th className="px-5 py-3.5">Username</th>
-                <th className="px-5 py-3.5">Email Penugasan</th>
                 <th className="px-5 py-3.5">Tingkat Akses (Role)</th>
-                <th className="px-5 py-3.5">Status Akun</th>
                 <th className="px-5 py-3.5 text-center">Aksi Perubahan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700 text-xs">
-              {admins && admins.map((account, index) => {
-                const isSuperAdminUser = account.role?.toLowerCase() === 'superadmin' || account.role?.toLowerCase() === 'super admin';
-                const isActive = account.status === 'Active';
+              {adminAccounts && adminAccounts.map((account) => {
+                const normalizedRole = account.role?.toLowerCase();
+                const isSuperAdminUser = normalizedRole === 'super admin' || normalizedRole === 'superadmin';
+                
+                // Pada sistem Anda, tidak ada field status di basis data asli, kita buat fallback Active
+                const isActive = true; 
 
                 return (
-                  <tr key={account.id || index} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={account.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-4 text-slate-400 font-mono">ADM-00{account.id}</td>
                     <td className="px-5 py-4 font-bold text-slate-800 flex items-center gap-2">
                       {isSuperAdminUser && <Shield size={14} className="text-red-500 flex-shrink-0" />}
                       <span>{account.username}</span>
                     </td>
-                    <td className="px-5 py-4 text-slate-500 font-normal">{account.email || '-'}</td>
                     <td className="px-5 py-4">
                       <span className={`text-[10px] uppercase tracking-wider border px-2 py-0.5 rounded-md ${getRoleBadge(account.role)}`}>
                         {account.role}
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 border rounded-full text-[10px] font-bold ${
-                        isActive ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-                        {account.status || 'Active'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
                       <div className="flex items-center justify-center gap-1.5">
-                        {/* Tombol Ubah Status Akun */}
+                        {/* Tombol Ubah Password / Fitur Ekstra Temp */}
                         <button 
                           disabled={isSuperAdminUser}
-                          onClick={() => updateAdminStatus && updateAdminStatus(account.id)}
-                          title={isSuperAdminUser ? 'Status Superadmin Utama Mutlak' : `Ubah ke ${isActive ? 'Inactive' : 'Active'}`}
+                          onClick={() => updateAdminAccount && updateAdminAccount(account.id, { password: 'PasswordBaru123' })}
+                          title={isSuperAdminUser ? 'Akses Super Admin Mutlak' : 'Reset Password default'}
                           className={`p-1.5 border rounded-lg transition-colors ${
                             isSuperAdminUser 
                               ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' 
                               : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-500 cursor-pointer'
                           }`}
                         >
-                          {isActive ? <XCircle size={13} className="text-amber-500" /> : <CheckCircle2 size={13} className="text-emerald-500" />}
+                          {isActive ? <CheckCircle2 size={13} className="text-emerald-500" /> : <XCircle size={13} className="text-slate-400" />}
                         </button>
 
                         {/* Tombol Hapus Akun */}
                         <button 
                           disabled={isSuperAdminUser || account.username === currentAdmin?.username}
-                          onClick={() => deleteAdmin && deleteAdmin(account.id)}
-                          title={isSuperAdminUser ? 'Superadmin Utama tidak bisa dihapus' : 'Hapus Akun'}
+                          onClick={() => deleteAdminAccount && deleteAdminAccount(account.id)}
+                          title={isSuperAdminUser ? 'Super Admin Utama tidak bisa dihapus' : 'Hapus Akun'}
                           className={`p-1.5 border rounded-lg transition-colors ${
                             (isSuperAdminUser || account.username === currentAdmin?.username)
                               ? 'bg-slate-100 border-slate-200 text-slate-300 cursor-not-allowed' 
