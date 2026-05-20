@@ -4,10 +4,11 @@ import { useRecruitment } from '../context/RecruitmentContext';
 import { Candidate } from '../data/mockData';
 
 export function PipelineChart() {
+  // Ambil slaConfig dari Context, BUKAN array hardcoded
   const { candidates, slaConfig } = useRecruitment();
   const [popup, setPopup] = useState<{ stage: string; items: Candidate[] } | null>(null);
 
-  // Kalkulasi data per tahap
+  // LOGIKA DINAMIS: Menggunakan slaConfig sebagai acuan utama
   const pipelineData = slaConfig.map((config) => {
     const stageCandidates = candidates.filter(c => c.stage === config.stage);
     const compliant = stageCandidates.filter(c => c.slaStatus === 'On-Track').length;
@@ -18,61 +19,59 @@ export function PipelineChart() {
   });
 
   return (
-    <>
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-800 mb-6 uppercase tracking-wider">Pipeline Rekrutmen: Distribusi Pelamar</h3>
-        
-        {/* TABEL MENGGANTIKAN FUNNEL */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="text-slate-400 text-[11px] uppercase border-b border-slate-100">
-                <th className="pb-4 px-2">Tahap/Proses</th>
-                <th className="pb-4 px-2">Target SLA</th>
-                <th className="pb-4 px-2 text-center">Kandidat</th>
-                <th className="pb-4 px-2 text-center">Compliant</th>
-                <th className="pb-4 px-2 text-center">Violation</th>
-                <th className="pb-4 px-2">Compliance Rate</th>
-                <th className="pb-4 px-2">Status</th>
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+      <h3 className="text-lg font-bold text-slate-800 mb-6">PIPELINE REKRUTMEN: DISTRIBUSI PELAMAR</h3>
+      
+      {/* MENGGANTI FUNNEL DENGAN TABEL */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="text-slate-400 text-[11px] uppercase border-b border-slate-100">
+              <th className="pb-4 px-2">Tahap/Proses</th>
+              <th className="pb-4 px-2">Target SLA</th>
+              <th className="pb-4 px-2 text-center">Kandidat</th>
+              <th className="pb-4 px-2 text-center">Compliant</th>
+              <th className="pb-4 px-2 text-center">Violation</th>
+              <th className="pb-4 px-2">Compliance Rate</th>
+              <th className="pb-4 px-2">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {pipelineData.map((row) => (
+              <tr 
+                key={row.stage} 
+                className="hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => setPopup({ stage: row.stage, items: candidates.filter(c => c.stage === row.stage) })}
+              >
+                <td className="py-4 px-2 font-bold text-sm text-slate-700 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }} />
+                  {row.stage}
+                </td>
+                <td className="py-4 px-2 text-slate-600 text-sm">{row.slaDays} hari</td>
+                <td className="py-4 px-2 text-center font-bold text-slate-700">{row.total}</td>
+                <td className="py-4 px-2 text-center font-bold text-emerald-600">{row.compliant}</td>
+                <td className="py-4 px-2 text-center font-bold text-red-600">{row.violation}</td>
+                <td className="py-4 px-2 text-sm text-slate-500 w-32">
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1">
+                    <div className="bg-slate-300 h-1.5 rounded-full" style={{ width: `${row.rate}%` }} />
+                  </div>
+                  {row.rate}%
+                </td>
+                <td className="py-4 px-2">
+                  {row.violation > 0 ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100 uppercase">
+                      <AlertTriangle size={10} /> Violation
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 uppercase">
+                      <CheckCircle size={10} /> Compliant
+                    </span>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {pipelineData.map((row) => (
-                <tr 
-                  key={row.stage} 
-                  className="hover:bg-slate-50 transition-colors cursor-pointer"
-                  onClick={() => setPopup({ stage: row.stage, items: candidates.filter(c => c.stage === row.stage) })}
-                >
-                  <td className="py-4 px-2 font-bold text-sm text-slate-700 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: row.color }} />
-                    {row.stage}
-                  </td>
-                  <td className="py-4 px-2 text-slate-600 text-sm">{row.slaDays} hari</td>
-                  <td className="py-4 px-2 text-center font-bold text-slate-700">{row.total}</td>
-                  <td className="py-4 px-2 text-center font-bold text-emerald-600">{row.compliant}</td>
-                  <td className="py-4 px-2 text-center font-bold text-red-600">{row.violation}</td>
-                  <td className="py-4 px-2 text-sm text-slate-500 w-32">
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1">
-                      <div className="bg-slate-300 h-1.5 rounded-full" style={{ width: `${row.rate}%` }} />
-                    </div>
-                    {row.rate}%
-                  </td>
-                  <td className="py-4 px-2">
-                    {row.violation > 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-100 uppercase">
-                        <AlertTriangle size={10} /> Violation
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100 uppercase">
-                        <CheckCircle size={10} /> Compliant
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Pop-up Detail */}
@@ -90,6 +89,6 @@ export function PipelineChart() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
