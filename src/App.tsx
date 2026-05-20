@@ -34,7 +34,6 @@ export function App() {
 
   // FUNGSI UTAMA: Membaca data SLA dari localStorage secara menyeluruh
   const loadSlaSettings = () => {
-    // Membaca semua variasi key yang mungkin digunakan oleh SettingsTab perusahaan Anda
     const savedApplied = localStorage.getItem('sla_target_applied') || localStorage.getItem('sla_applied') || localStorage.getItem('applied');
     const savedScreening = localStorage.getItem('sla_target_screening') || localStorage.getItem('sla_screening') || localStorage.getItem('screening');
     const savedInterview = localStorage.getItem('sla_target_interview') || localStorage.getItem('sla_interview') || localStorage.getItem('interview');
@@ -54,13 +53,8 @@ export function App() {
 
   // RE-ACTIVE LISTENER: Sinkronisasi instan lintas komponen dan tab
   useEffect(() => {
-    // 1. Muat data saat komponen pertama kali dipasang atau pindah tab
     loadSlaSettings();
-
-    // 2. Dengarkan event 'storage' jika ada perubahan dari tab/jendela lain
     window.addEventListener('storage', loadSlaSettings);
-
-    // 3. Dengarkan custom event 'slaSettingsUpdated' jika disimpan dalam sesi komponen yang sama
     window.addEventListener('slaSettingsUpdated', loadSlaSettings);
 
     return () => {
@@ -115,19 +109,22 @@ export function App() {
   const showSidebar = !!currentAdmin;
 
   return (
-    <div className="flex min-h-screen w-full bg-slate-50 font-sans antialiased overflow-x-hidden">
+    /* PERBAIKAN UTAMA: Mengunci tinggi container sebatas layar 'h-screen' agar scroll berpindah ke area main saja */
+    <div className="flex h-screen w-full bg-slate-50 font-sans antialiased overflow-hidden">
       
-      {/* SIDEBAR NAVIGASI INTERNAL */}
+      {/* SIDEBAR CONTAINER: Diberikan posisi sticky, top-0, dan h-screen agar terkunci diam di kiri */}
       {showSidebar && (
-        <Sidebar 
-          activeTab={activeTab} 
-          onTabChange={(tabId) => setActiveTab(tabId)}
-          onLogout={handleAbsoluteLogout}
-        />
+        <div className="sticky top-0 h-screen flex-shrink-0 z-20 shadow-sm border-r border-slate-200 bg-white">
+          <Sidebar 
+            activeTab={activeTab} 
+            onTabChange={(tabId) => setActiveTab(tabId)}
+            onLogout={handleAbsoluteLogout}
+          />
+        </div>
       )}
 
-      {/* AREA UTAMA CONTROLLER */}
-      <div className="flex-1 flex flex-col min-w-0 w-full">
+      {/* AREA UTAMA CONTROLLER (Hanya area ini yang akan bergeser/scroll naik turun) */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
         <main className="flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-7xl mx-auto pb-32">
           
           {/* HEADER PANEL */}
@@ -151,7 +148,7 @@ export function App() {
                 activeTab === 'portal-links' ? (
                   <button
                     onClick={() => setActiveTab('login')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:text-slate-900 font-bold rounded-xl text-xs border border-slate-200 shadow-sm transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:text-slate-900 font-bold rounded-xl text-xs border border-slate-200 hover:border-slate-300 shadow-sm transition-all"
                   >
                     <span>Login</span>
                   </button>
