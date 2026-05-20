@@ -5,7 +5,8 @@ import {
   Briefcase, 
   Calendar, 
   UserCheck, 
-  Settings 
+  Settings,
+  History 
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,14 +23,15 @@ export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }
     { id: 'candidates', name: 'Manajemen Kandidat', icon: <Users size={16} /> },
     { id: 'jobs', name: 'Manajemen Lowongan', icon: <Briefcase size={16} /> },
     { id: 'interviews', name: 'Jadwal Interview', icon: <Calendar size={16} /> },
+    /* Menu baru diletakkan di sini agar bisa diakses oleh semua role */
+    { id: 'history', name: 'Riwayat Aktivitas', icon: <History size={16} /> },
     { id: 'admin-accounts', name: 'Manajemen Admin', icon: <UserCheck size={16} /> },
     { id: 'settings', name: 'Pengaturan Sistem', icon: <Settings size={16} /> },
   ];
 
-  // NORMALISASI STRING: Ubah role ke huruf kecil untuk menghindari bug typo/kapitalisasi (e.g. "Recruiter" vs "recruiter")
   const normalizedRole = (currentRole || '').trim().toLowerCase();
 
-  // LOGIKA PENYARINGAN EKSTREMED: Menghilangkan menu secara instan jika terdeteksi 'admin' atau 'recruiter'
+  // Sembunyikan 'admin-accounts' dan 'settings' dari admin & recruiter
   const filteredMenuItems = menuItems.filter(item => {
     if (item.id === 'admin-accounts' || item.id === 'settings') {
       return normalizedRole !== 'admin' && normalizedRole !== 'recruiter';
@@ -40,18 +42,14 @@ export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }
   return (
     <div className="w-64 h-full bg-slate-900 text-slate-300 flex flex-col justify-between p-4 font-sans text-left">
       <div className="space-y-6">
-        {/* Identitas Aplikasi */}
         <div className="flex items-center gap-2.5 px-3 py-2 border-b border-slate-800 pb-4">
-          <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center font-black text-white text-base">
-            T
-          </div>
+          <div className="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center font-black text-white text-base">T</div>
           <div>
             <h2 className="font-bold text-white text-sm leading-tight tracking-wide">TalentHub</h2>
             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Dashboard Panel</p>
           </div>
         </div>
 
-        {/* Menu Navigasi Nav Bar */}
         <nav className="space-y-1">
           {filteredMenuItems.map((item) => {
             const isActive = activeTab === item.id;
@@ -73,7 +71,6 @@ export function Sidebar({ activeTab, onTabChange, currentRole, currentUsername }
         </nav>
       </div>
 
-      {/* Informasi Ringkas Pengguna */}
       <div className="pt-4 border-t border-slate-800 mb-2">
         <div className="px-3 py-2 bg-slate-800/40 border border-slate-800 rounded-xl">
           <p className="text-xs font-bold text-slate-200 truncate">{currentUsername || 'User Admin'}</p>
