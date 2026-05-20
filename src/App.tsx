@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useRecruitment } from './context/RecruitmentContext';
-import { ShieldAlert, LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { LogOut, Settings as SettingsIcon } from 'lucide-react';
 
 import { Sidebar } from './components/Sidebar';
 import { StatsCards } from './components/StatsCards';
 import { SettingsTab } from './components/SettingsTab';
-import { AdminAccounts } from './components/AdminAccounts';
-import { HistoryTab } from './components/HistoryTab';
 import { ApplicationChart } from './components/ApplicationChart';
 import { NotificationDropdown } from './components/NotificationDropdown';
 import { PipelineChart } from './components/PipelineChart';
@@ -15,7 +13,20 @@ export function App() {
   const { currentAdmin, login, logout, candidates = [], jobs = [] } = useRecruitment();
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   
-  // Header Component (Diletakkan di sini agar mudah digunakan)
+  // State form login
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (login) {
+      const success = login(usernameInput, passwordInput);
+      if (!success) setLoginError('Username atau password salah.');
+      else { setLoginError(''); setActiveTab('dashboard'); }
+    }
+  };
+
   const Header = () => (
     <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0 text-left">
       <div>
@@ -25,13 +36,11 @@ export function App() {
       {currentAdmin && (
         <div className="flex items-center gap-4">
           <NotificationDropdown />
-          <div className="w-px h-5 bg-slate-200"></div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 ml-4">
             <span className="text-[11px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl capitalize">
-              {currentAdmin.username} <span className="text-slate-400 font-normal mx-1">|</span> 
-              <span className="text-indigo-600 uppercase font-extrabold text-[9px] tracking-wider">{currentAdmin.role}</span>
+              {currentAdmin.username} | <span className="text-indigo-600 uppercase font-extrabold text-[9px]">{currentAdmin.role}</span>
             </span>
-            <button onClick={() => logout && logout()} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg border border-red-100 transition-colors cursor-pointer">
+            <button onClick={() => logout && logout()} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg border border-red-100 transition-colors">
               <LogOut size={13} />
             </button>
           </div>
@@ -40,13 +49,26 @@ export function App() {
     </header>
   );
 
-  // Jika belum login
-  if (!currentAdmin) return ( /* ... (Biarkan kode login Anda yang lama di sini) ... */ );
+  // LOGIC LOGIN YANG LENGKAP
+  if (!currentAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-200 shadow-2xl">
+          <h2 className="text-xl font-black text-center text-slate-800 mb-6">TalentHub Login</h2>
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <input required type="text" value={usernameInput} onChange={(e) => setUsernameInput(e.target.value)} className="w-full px-4 py-3 text-xs border border-slate-200 rounded-xl bg-slate-50" placeholder="Username" />
+            <input required type="password" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} className="w-full px-4 py-3 text-xs border border-slate-200 rounded-xl bg-slate-50" placeholder="Password" />
+            {loginError && <p className="text-[10px] text-red-500 font-bold">{loginError}</p>}
+            <button type="submit" className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl text-xs">Masuk Sistem</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} currentRole={currentAdmin.role} currentUsername={currentAdmin.username} />
-      
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <Header />
         <main className="flex-1 overflow-y-auto p-6 bg-slate-50/50 space-y-6">
@@ -54,11 +76,9 @@ export function App() {
             <div className="space-y-6">
               <StatsCards />
               <ApplicationChart />
-              
-              {/* Pipeline Chart Tabel */}
               <PipelineChart />
-
-              {/* 👥 LIST KANDIDAT TERBARU (DIKEMBALIKAN) */}
+              
+              {/* Daftar Kandidat Terbaru */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Daftar Kandidat Terbaru</h3>
                 <div className="overflow-x-auto">
@@ -86,7 +106,6 @@ export function App() {
               </div>
             </div>
           )}
-          {/* ... (switch case untuk tab lain tetap seperti semula) ... */}
         </main>
       </div>
     </div>
