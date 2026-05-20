@@ -8,6 +8,10 @@ import { StatsCards } from './components/StatsCards';
 import { SettingsTab } from './components/SettingsTab';
 import { AdminAccounts } from './components/AdminAccounts';
 import { HistoryTab } from './components/HistoryTab';
+
+// 1. PASTIKAN IMPOR GRAFIK VISUAL SUDAH ADA DI SINI
+import { ApplicationChart } from './components/ApplicationChart';
+
 // Impor Dropdown Notifikasi Lonceng
 import { NotificationDropdown } from './components/NotificationDropdown';
 
@@ -69,7 +73,7 @@ export function App() {
     }
   };
 
-  // 1. JIKA MEMBUKA PORTAL LINK LOWONGAN: Fullscreen bersih total tanpa Sidebar / Topbar gantung
+  // TAMPILAN PORTAL LINK LOWONGAN: Fullscreen bersih tanpa Sidebar / Topbar gantung
   if (activeTab === 'portal-links') {
     return (
       <div className="min-h-screen bg-slate-50 p-6 font-sans text-left flex flex-col items-center justify-center space-y-6">
@@ -96,7 +100,7 @@ export function App() {
     );
   }
 
-  // 2. JIKA MEMBUKA PANEL INTERNAL DAN BELUM LOGIN
+  // TAMPILAN LOGIN: Jika membuka area admin tapi belum terautentikasi
   if (!currentAdmin) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-left">
@@ -127,7 +131,7 @@ export function App() {
     );
   }
 
-  // 3. JIKA SUDAH LOGIN & MASUK PANEL INTERNAL WORKSPACE
+  // PANEL INTERNAL WORKSPACE UTAMA (SETELAH LOG IN)
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans">
       <Sidebar 
@@ -139,7 +143,7 @@ export function App() {
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         
-        {/* TOPBAR HEADER KANAN ATAS */}
+        {/* HEADER TOPBAR KANAN ATAS */}
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between flex-shrink-0 text-left">
           <div>
             <h1 className="text-base font-extrabold text-slate-800 capitalize tracking-tight">
@@ -149,7 +153,6 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* DROPDOWN NOTIFIKASI LONCENG INTERAKTIF 🛎️ */}
             <NotificationDropdown />
             
             <div className="w-px h-5 bg-slate-200"></div>
@@ -170,15 +173,18 @@ export function App() {
           </div>
         </header>
 
-        {/* MAIN BODY LAYOUT */}
+        {/* ISI HALAMAN KONTEN MANAJEMEN */}
         <main className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
           {(() => {
             switch (activeTab) {
               case 'dashboard':
                 return (
                   <div className="space-y-6">
-                    {/* Render modul StatsCards secara murni */}
+                    {/* 2. MEMANGGIL STATSCARDS */}
                     <StatsCards />
+
+                    {/* 3. MEMANGGIL COMPONENT UTAMA GRAFIK VISUAL (DI BAWAH STATSCARDS) */}
+                    <ApplicationChart />
                     
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-left">
                       <h3 className="text-sm font-bold text-slate-800 mb-2">Selamat Datang Kembali, {currentAdmin.username}!</h3>
