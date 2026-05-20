@@ -14,29 +14,14 @@ interface HistoryLog {
 export function HistoryTab() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Dummy data contoh transaksi log aktivitas sistem rekrutmen TalentHub
-  const [logs] = useState<HistoryLog[]>([
-    { id: 'LOG-001', timestamp: '2026-05-20 13:45:12', adminName: 'Rian Recruiter', role: 'recruiter', actionType: 'CREATE', description: 'Menambahkan kandidat baru', targetData: 'Budi Santoso (Frontend Developer)' },
-    { id: 'LOG-002', timestamp: '2026-05-20 11:20:05', adminName: 'Siti Admin', role: 'admin', actionType: 'UPDATE', description: 'Mengubah jadwal interview tahap 2', targetData: 'Kandidat Ani Wijaya' },
-    { id: 'LOG-003', timestamp: '2026-05-20 09:00:10', adminName: 'Super HRD', role: 'superadmin', actionType: 'CREATE', description: 'Menerbitkan lowongan pekerjaan baru', targetData: 'DevOps Engineer - Fulltime' },
-    { id: 'LOG-004', timestamp: '2026-05-19 16:30:45', adminName: 'Rian Recruiter', role: 'recruiter', actionType: 'LOGIN', description: 'Berhasil melakukan otentikasi masuk sistem', targetData: 'Sesi Browser Chrome' },
-    { id: 'LOG-005', timestamp: '2026-05-19 14:15:22', adminName: 'Siti Admin', role: 'admin', actionType: 'UPDATE', description: 'Mengubah status pemenuhan target SLA kriteria', targetData: 'Tahap Screening Lamaran' },
-  ]);
+  // Array dikosongkan secara mutlak karena belum ada transaksi proses
+  const [logs] = useState<HistoryLog[]>([]);
 
   const filteredLogs = logs.filter(log => 
     log.adminName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     log.targetData.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const getBadgeColor = (type: string) => {
-    switch (type) {
-      case 'CREATE': return 'bg-emerald-50 border-emerald-200 text-emerald-700';
-      case 'UPDATE': return 'bg-indigo-50 border-indigo-200 text-indigo-700';
-      case 'DELETE': return 'bg-red-50 border-red-200 text-red-700';
-      default: return 'bg-slate-100 border-slate-200 text-slate-600';
-    }
-  };
 
   return (
     <div className="space-y-6 text-left font-sans">
@@ -46,10 +31,11 @@ export function HistoryTab() {
           <Search className="absolute left-3 top-3 text-slate-400" size={16} />
           <input
             type="text"
+            disabled
             placeholder="Cari nama admin, aksi, atau data..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 focus:bg-white transition-all focus:outline-none"
+            className="w-full pl-9 pr-4 py-2 text-xs border border-slate-200 rounded-xl bg-slate-100 opacity-60 cursor-not-allowed focus:outline-none"
           />
         </div>
         <div className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
@@ -58,7 +44,7 @@ export function HistoryTab() {
         </div>
       </div>
 
-      {/* Tabel Utama Log Riwayat */}
+      {/* Tabel Utama Log Riwayat - Keadaan Kosong */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left text-slate-600 min-w-[800px]">
@@ -84,7 +70,7 @@ export function HistoryTab() {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <span className={`text-[10px] font-black border px-2 py-0.5 rounded-md ${getBadgeColor(log.actionType)}`}>
+                      <span className="text-[10px] font-black border px-2 py-0.5 rounded-md bg-slate-100 border-slate-200 text-slate-600">
                         {log.actionType}
                       </span>
                     </td>
@@ -93,10 +79,14 @@ export function HistoryTab() {
                   </tr>
                 ))
               ) : (
+                /* Tampilan Indikator Bersih Ketika Log Kosong */
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-slate-400 font-normal">
-                    <FileText className="mx-auto mb-2 opacity-40" size={24} />
-                    Tidak ada riwayat transaksi data ditemukan.
+                  <td colSpan={6} className="px-5 py-16 text-center text-slate-400 font-normal">
+                    <div className="w-12 h-12 bg-slate-50 border border-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <FileText opacity={0.6} size={20} />
+                    </div>
+                    <p className="text-sm font-bold text-slate-700">Belum Ada Riwayat Transaksi</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Seluruh aktivitas pembaruan data pengelola akan terekam otomatis di sini.</p>
                   </td>
                 </tr>
               )}
